@@ -43,7 +43,7 @@ export async function onRequestPost(context) {
         contents: contents,
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 400,
+          maxOutputTokens: 1200,
           topP: 0.9,
         },
         safetySettings: [
