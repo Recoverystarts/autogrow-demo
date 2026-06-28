@@ -1,6 +1,17 @@
-// AutoGrow Demo Platform — Gemini API Proxy
+// AutoGrow — Gemini API Proxy with CORS
 // Cloudflare Pages Function at /api/chat
-// Keeps the Gemini API key server-side
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Max-Age': '86400',
+};
+
+// Handle CORS preflight
+export async function onRequestOptions() {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
+}
 
 export async function onRequestPost(context) {
   const GEMINI_KEY = context.env.GEMINI_API_KEY;
@@ -8,7 +19,7 @@ export async function onRequestPost(context) {
   if (!GEMINI_KEY) {
     return new Response(JSON.stringify({ error: 'API key not configured' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
     });
   }
 
@@ -17,13 +28,12 @@ export async function onRequestPost(context) {
     const { contents, config } = body;
 
     if (!contents || !Array.isArray(contents)) {
-      return new Response(JSON.stringify({ error: 'Invalid request: contents array required' }), {
+      return new Response(JSON.stringify({ error: 'Invalid request' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
       });
     }
 
-    // Call Gemini 2.5 Flash
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
 
     const geminiResponse = await fetch(geminiUrl, {
@@ -33,7 +43,7 @@ export async function onRequestPost(context) {
         contents: contents,
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 300,
+          maxOutputTokens: 400,
           topP: 0.9,
         },
         safetySettings: [
@@ -47,32 +57,27 @@ export async function onRequestPost(context) {
 
     if (!geminiResponse.ok) {
       const errText = await geminiResponse.text();
-      console.error('Gemini API error:', errText);
-      return new Response(JSON.stringify({ error: 'AI service error', details: geminiResponse.status }), {
+      console.error('Gemini error:', errText);
+      return new Response(JSON.stringify({ error: 'AI service error' }), {
         status: 502,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
       });
     }
 
     const geminiData = await geminiResponse.json();
-
-    // Extract the response text
     const responseText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text
-      || "I'm sorry, I couldn't generate a response. Please try again.";
+      || "I'm having trouble right now. Please try again.";
 
     return new Response(JSON.stringify({ response: responseText }), {
       status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store'
-      }
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...CORS_HEADERS }
     });
 
   } catch (err) {
-    console.error('Chat function error:', err);
-    return new Response(JSON.stringify({ error: 'Internal error', message: err.message }), {
+    console.error('Error:', err);
+    return new Response(JSON.stringify({ error: 'Internal error' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
     });
   }
 }
