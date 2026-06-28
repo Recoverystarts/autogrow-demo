@@ -176,6 +176,24 @@
     </div>
 
     <div class="config-body">
+      <!-- ═══ URL SCRAPER — THE MAGIC ═══ -->
+      <div class="field" style="position: relative;">
+        <label style="color: #34d399; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.08em;">⚡ INSTANT SETUP — PASTE YOUR WEBSITE</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="bizUrl" placeholder="https://yourbusiness.com" style="flex: 1;" autocomplete="off">
+          <button onclick="scrapeWebsite()" id="scrapeBtn" style="background: #34d399; color: #0f172a; border: none; border-radius: 8px; padding: 0 18px; font-weight: 700; font-size: 0.82rem; cursor: pointer; white-space: nowrap; transition: background 0.2s;">
+            Scan →
+          </button>
+        </div>
+        <div id="scrapeStatus" style="font-size: 0.72rem; color: #94a3b8; margin-top: 6px; min-height: 16px;"></div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; margin: 4px 0 8px 0;">
+        <div style="flex: 1; height: 1px; background: #334155;"></div>
+        <span style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em;">or fill in manually</span>
+        <div style="flex: 1; height: 1px; background: #334155;"></div>
+      </div>
+
       <div class="field">
         <label>Business Name</label>
         <input type="text" id="bizName" placeholder="e.g. Bright Smile Dental" autocomplete="off">
@@ -275,6 +293,106 @@
   let botActive = false;
   let businessConfig = {};
   let chatHistory = [];
+
+  // ═══ URL SCRAPER — THE MAGIC ═══
+  async function scrapeWebsite() {
+    const urlInput = document.getElementById('bizUrl');
+    const btn = document.getElementById('scrapeBtn');
+    const status = document.getElementById('scrapeStatus');
+    let url = urlInput.value.trim();
+
+    if (!url) { status.textContent = 'Paste a website URL first'; status.style.color = '#f87171'; return; }
+    if (!url.startsWith('http')) url = 'https://' + url;
+
+    btn.disabled = true;
+    btn.textContent = 'Scanning...';
+    btn.style.background = '#64748b';
+    status.textContent = '🔍 Reading the website...';
+    status.style.color = '#34d399';
+
+    try {
+      const res = await fetch('/api/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Scan failed');
+      }
+
+      const data = await res.json();
+      const biz = data.business;
+
+      status.textContent = '🧠 Analyzing with AI...';
+
+      // Auto-fill form fields with scraped data
+      if (biz.businessName) {
+        document.getElementById('bizName').value = biz.businessName;
+        document.getElementById('bizName').dispatchEvent(new Event('input'));
+      }
+
+      if (biz.industry) {
+        const select = document.getElementById('bizIndustry');
+        const industryMap = {
+          'Healthcare': 'medical', 'Restaurant': 'restaurant', 'Retail': 'retail',
+          'Professional Services': 'other', 'Home Services': 'hvac',
+          'Beauty & Wellness': 'barbershop', 'Automotive': 'auto',
+          'Real Estate': 'realestate', 'Fitness': 'fitness',
+          'Education': 'other', 'Legal': 'legal', 'Other': 'other',
+          'Dental': 'dental'
+        };
+        select.value = industryMap[biz.industry] || 'other';
+      }
+
+      if (biz.description) {
+        document.getElementById('bizDescription').value = biz.description;
+      }
+
+      if (biz.commonQuestions && biz.commonQuestions.length) {
+        document.getElementById('bizFAQs').value = biz.commonQuestions.join('\n');
+      }
+
+      if (biz.hours) {
+        document.getElementById('bizHours').value = biz.hours;
+      }
+
+      if (biz.phone) {
+        document.getElementById('bizPhone').value = biz.phone;
+      }
+
+      if (biz.tone) {
+        const toneSelect = document.getElementById('bizTone');
+        const toneMap = {
+          'Professional': 'professional', 'Friendly & Warm': 'friendly',
+          'Casual': 'casual', 'Clinical': 'professional', 'Luxury': 'professional'
+        };
+        toneSelect.value = toneMap[biz.tone] || 'friendly';
+      }
+
+      status.innerHTML = '✅ <strong>Auto-filled!</strong> Review the details below, then activate.';
+      status.style.color = '#34d399';
+
+      // Auto-scroll to the activate button
+      setTimeout(() => {
+        document.getElementById('activateBtn').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 500);
+
+    } catch (err) {
+      status.textContent = '❌ ' + (err.message || 'Something went wrong. Try filling in manually.');
+      status.style.color = '#f87171';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Scan →';
+      btn.style.background = '#34d399';
+    }
+  }
+
+  // Handle Enter key in URL field
+  document.getElementById('bizUrl').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') scrapeWebsite();
+  });
 
   // ═══ LIVE PREVIEW — update as user types ═══
   document.getElementById('bizName').addEventListener('input', (e) => {
