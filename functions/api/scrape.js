@@ -189,16 +189,49 @@ ${pageContent}${linksContext}`;
 
     let businessInfo;
     try {
-      const cleaned = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      // Clean Gemini response: strip markdown fences, find JSON object
+      let cleaned = responseText
+        .replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      // Extract JSON object if there's surrounding text
+      const firstBrace = cleaned.indexOf('{');
+      const lastBrace = cleaned.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace > firstBrace) {
+        cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+      }
+
+      // Clean control characters that break JSON.parse
+      cleaned = cleaned.replace(/[\x00-\x1f\x7f]/g, (ch) => {
+        if (ch === '\n' || ch === '\r' || ch === '\t') return ch;
+        return '';
+      });
+
       businessInfo = JSON.parse(cleaned);
     } catch (parseErr) {
-      return new Response(JSON.stringify({
-        error: 'Could not parse business info',
-        raw: responseText.slice(0, 500)
-      }), {
-        status: 422,
-        headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
-      });
+      // Last resort: try to extract key fields with regex
+      try {
+        const getName = responseText.match(/"businessName"\s*:\s*"([^"]+)"/);
+        const getDesc = responseText.match(/"description"\s*:\s*"([^"]+)"/);
+        const getPhone = responseText.match(/"phone"\s*:\s*"([^"]+)"/);
+        businessInfo = {
+          businessName: getName ? getName[1] : 'Unknown Business',
+          description: getDesc ? getDesc[1] : '',
+          phone: getPhone ? getPhone[1] : null,
+          industry: 'Other',
+          tone: 'Friendly & Warm',
+          commonQuestions: [],
+          sitePages: [],
+          _parseFallback: true
+        };
+      } catch (regexErr) {
+        return new Response(JSON.stringify({
+          error: 'Could not parse business info',
+          raw: responseText.slice(0, 500)
+        }), {
+          status: 422,
+          headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
+        });
+      }
     }
 
     // Add raw extracted data that Gemini might have missed
