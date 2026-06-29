@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ironside Barber Co. — Calgary</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@300;400;500&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; color: #1a1a1a; background: #fafaf8; }
+  a { color: inherit; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  header { background: #14110e; color: #f5f0e6; position: sticky; top: 0; z-index: 50; }
+  nav { display: flex; align-items: center; gap: 28px; height: 70px; }
+  nav .brand { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 1.4rem; letter-spacing: 0.06em; color: #d4a017; text-transform: uppercase; }
+  nav .links { margin-left: auto; display: flex; gap: 26px; font-size: 0.9rem; font-weight: 500; }
+  nav .links a { color: #cabfa6; text-decoration: none; transition: color .2s; }
+  nav .links a:hover { color: #d4a017; }
+  nav .book { background: #d4a017; color: #14110e; padding: 9px 18px; border-radius: 4px; font-weight: 600; text-decoration: none; }
+</style>
+</head>
+<body>
+<style>
+  .hero { background: linear-gradient(rgba(20,17,14,0.74), rgba(20,17,14,0.74)), url('https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1400&q=60') center/cover; color: #f5f0e6; padding: 110px 0; text-align: center; }
+  .hero h1 { font-family: 'Oswald', sans-serif; font-size: 3.4rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.05; }
+  .hero h1 span { color: #d4a017; }
+  .hero p { font-size: 1.15rem; color: #e6dcc8; margin: 18px auto 28px; max-width: 540px; font-weight: 300; }
+  .hero .cta { background: #d4a017; color: #14110e; padding: 14px 30px; border-radius: 4px; font-weight: 600; text-decoration: none; font-size: 1rem; display: inline-block; }
+  section { padding: 72px 0; }
+  section h2 { font-family: 'Oswald', sans-serif; font-size: 2rem; text-transform: uppercase; letter-spacing: 0.04em; text-align: center; margin-bottom: 8px; }
+  section .sub { text-align: center; color: #6b6b6b; margin-bottom: 44px; }
+  .services { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px; }
+  .svc { border: 1px solid #e7e2d6; border-radius: 8px; padding: 26px; background: #fff; }
+  .svc h3 { font-family: 'Oswald', sans-serif; font-size: 1.2rem; letter-spacing: 0.03em; margin-bottom: 6px; }
+  .svc .price { color: #d4a017; font-weight: 700; font-size: 1.3rem; margin-bottom: 8px; }
+  .svc p { color: #6b6b6b; font-size: 0.92rem; line-height: 1.5; }
+  .hours { background: #14110e; color: #f5f0e6; }
+  .hours .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; max-width: 760px; margin: 0 auto; }
+  .hours h2 { text-align: left; color: #d4a017; }
+  .hours .row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #2a241c; font-size: 0.95rem; }
+  .hours .info p { margin-bottom: 12px; color: #cabfa6; line-height: 1.6; }
+  footer { background: #0d0b09; color: #8a8270; text-align: center; padding: 30px; font-size: 0.85rem; }
+  @media (max-width: 720px) { .hero h1 { font-size: 2.3rem; } .hours .grid { grid-template-columns: 1fr; } }
+</style>
+
+<header>
+  <div class="wrap"><nav>
+    <span class="brand">Ironside Barber Co.</span>
+    <div class="links">
+      <a href="#services">Services</a>
+      <a href="#hours">Hours</a>
+      <a href="#book">Book</a>
+      <a class="book" href="#book">Book a Chair</a>
+    </div>
+  </nav></div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <h1>Sharp Cuts.<br><span>Old-School</span> Service.</h1>
+    <p>Calgary's neighborhood barbershop since 2014. Classic cuts, skin fades, hot-towel shaves, and beard work — walk in or book ahead.</p>
+    <a class="cta" href="#book">Book Your Cut →</a>
+  </div>
+</div>
+
+<section id="services">
+  <div class="wrap">
+    <h2>Services</h2>
+    <p class="sub">Walk in or book ahead. Cash, card, and tap accepted.</p>
+    <div class="services">
+      <div class="svc"><h3>Classic Cut</h3><div class="price">$35</div><p>Scissor or clipper cut, styled and finished. The everyday sharp look.</p></div>
+      <div class="svc"><h3>Skin Fade</h3><div class="price">$40</div><p>Tight, clean fade blended to the skin. Our most-requested cut.</p></div>
+      <div class="svc"><h3>Beard Trim</h3><div class="price">$20</div><p>Shaped, lined, and conditioned. Hot towel included.</p></div>
+      <div class="svc"><h3>Hot-Towel Shave</h3><div class="price">$45</div><p>Traditional straight-razor shave with hot towels and aftershave.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="hours" id="hours">
+  <div class="wrap"><div class="grid">
+    <div>
+      <h2>Hours</h2>
+      <div class="row"><span>Tue – Fri</span><span>9:00am – 7:00pm</span></div>
+      <div class="row"><span>Saturday</span><span>9:00am – 5:00pm</span></div>
+      <div class="row"><span>Sun – Mon</span><span>Closed</span></div>
+    </div>
+    <div class="info" id="book">
+      <h2>Find Us</h2>
+      <p>1142 Kensington Rd NW<br>Calgary, AB</p>
+      <p>Call or text: <strong>403-555-0142</strong></p>
+      <p>Weekends fill up fast — tap the chat in the corner to book a chair. 👇</p>
+    </div>
+  </div></div>
+</section>
+
+<footer>© 2026 Ironside Barber Co. · Calgary, AB · Chatbot by AutoGrow AI</footer>
+
+<!-- ═══ The AutoGrow widget — the actual product, embedded and brand-themed ═══ -->
+<script src="/widget.js"
+  data-config='{"business":"Ironside Barber Co.","color":"#d4a017","colors":{"primary":"#d4a017","accent":"#14110e"},"greeting":"Welcome to Ironside! 👋 Looking for a cut, a fade, or a beard trim? Ask me anything, or I can help you book a chair.","prompt":"You are the friendly front-desk assistant for Ironside Barber Co., a barbershop in Calgary. Services and prices: Classic Cut 35, Skin Fade 40, Beard Trim 20, Hot-Towel Shave 45, Cut and Beard combo 50. Hours: Tue-Fri 9am-7pm, Sat 9am-5pm, closed Sun and Mon. Walk-ins welcome, booking recommended on weekends. Phone 403-555-0142, address 1142 Kensington Rd NW Calgary. Be warm and concise, sound like a real barber who works here, help customers pick a service and guide them to book or call. Never make up information you were not given."}'
+  data-api="/api/chat"></script>
+</body>
+</html>
