@@ -173,6 +173,7 @@ ${pageContent}${linksContext}`;
         generationConfig: {
           temperature: 0.3,
           maxOutputTokens: 1500,
+          responseMimeType: 'application/json',
         },
       })
     });
