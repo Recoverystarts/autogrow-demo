@@ -163,6 +163,62 @@
     background: #f8fafc; flex-shrink: 0;
   }
   .powered-by a { color: #6366f1; text-decoration: none; font-weight: 500; }
+
+  /* ═══ BRAND THEMING — set live from the scraped site ═══ */
+  :root { --brand-primary: #34d399; --brand-accent: #6366f1; --brand-ink: #0f172a; }
+  .chat-avatar { background: var(--brand-primary) !important; color: var(--brand-ink); }
+  .chat-input button { background: var(--brand-primary); color: var(--brand-ink); }
+  .chat-input button:hover { background: var(--brand-primary); filter: brightness(0.92); }
+  .chat-input input:focus { border-color: var(--brand-accent); }
+
+  /* Real-site screenshot backdrop + branded fallback mock */
+  .site-screenshot {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; object-position: top center; opacity: 0;
+    transition: opacity 0.6s ease; z-index: 1;
+  }
+  .site-screenshot.loaded { opacity: 1; }
+  .branded-mock {
+    position: absolute; inset: 0; display: none; flex-direction: column; background: #fff; z-index: 0;
+  }
+  .branded-mock.show { display: flex; }
+  .bm-topbar {
+    display: flex; align-items: center; gap: 14px; padding: 16px 28px;
+    background: var(--brand-primary); color: var(--brand-ink);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+  }
+  .bm-logo { height: 32px; max-width: 150px; object-fit: contain; }
+  .bm-logo-text { font-size: 1.2rem; font-weight: 700; color: var(--brand-ink); }
+  .bm-nav { display: flex; gap: 16px; margin-left: auto; flex-wrap: wrap; }
+  .bm-nav span { font-size: 0.8rem; font-weight: 600; color: var(--brand-ink); opacity: 0.85; }
+  .bm-hero {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 40px;
+    background: linear-gradient(160deg, #fff 0%, color-mix(in srgb, var(--brand-primary) 16%, #fff) 100%);
+  }
+  .bm-hero h2 { font-size: 2.1rem; color: #1e293b; margin-bottom: 10px; }
+  .bm-hero p { font-size: 1.02rem; color: #64748b; max-width: 440px; line-height: 1.5; }
+  .bm-cta {
+    margin-top: 22px; padding: 12px 26px; border-radius: 8px;
+    background: var(--brand-accent); color: #fff; font-weight: 600; font-size: 0.9rem;
+  }
+  .backdrop-loading {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 3;
+    font-size: 0.72rem; color: #475569; background: rgba(255,255,255,0.88);
+    padding: 5px 13px; border-radius: 20px; display: none; box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+  }
+  .backdrop-loading.show { display: block; }
+
+  /* In-chat mini-preview card — opens the real page */
+  .preview-card {
+    align-self: flex-start; max-width: 92%; border: 1px solid #e2e8f0; border-radius: 12px;
+    overflow: hidden; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.06); animation: fadeIn 0.3s ease;
+  }
+  .preview-card img { width: 100%; height: 118px; object-fit: cover; object-position: top; background: #f1f5f9; display: block; }
+  .preview-card .pc-body { padding: 9px 12px; }
+  .preview-card .pc-title { font-size: 0.82rem; font-weight: 600; color: #1e293b; }
+  .preview-card .pc-open { display: inline-block; margin-top: 5px; font-size: 0.76rem; font-weight: 600; color: var(--brand-accent); text-decoration: none; }
+  .ag-link { color: var(--brand-accent); text-decoration: underline; cursor: pointer; font-weight: 500; }
 </style>
 </head>
 <body>
@@ -259,7 +315,21 @@
 
   <!-- ═══ PREVIEW PANEL ═══ -->
   <div class="preview-panel">
-    <div class="website-mock">
+    <div class="website-mock" id="websiteMock">
+      <div class="backdrop-loading" id="backdropLoading">📸 Loading your site…</div>
+      <img class="site-screenshot" id="siteScreenshot" alt="" />
+      <div class="branded-mock" id="brandedMock">
+        <div class="bm-topbar">
+          <img class="bm-logo" id="bmLogo" alt="" style="display:none;" />
+          <span class="bm-logo-text" id="bmLogoText">Your Business</span>
+          <div class="bm-nav" id="bmNav"></div>
+        </div>
+        <div class="bm-hero">
+          <h2 id="bmHeroName">Your Business</h2>
+          <p id="bmHeroTagline">Welcome — how can we help you today?</p>
+          <div class="bm-cta">Get Started</div>
+        </div>
+      </div>
       <div class="website-placeholder empty" id="websitePlaceholder">
         <div class="biz-name" id="previewBizName">Your Business Name</div>
         <div class="biz-tagline" id="previewTagline">Configure on the left to see the magic</div>
@@ -379,6 +449,12 @@
       window._scrapedMapUrl = biz.mapUrl || null;
       window._scrapedLocation = biz.location || null;
       window._scrapedSourceUrl = url;
+      window._scrapedBrandColors = biz.brandColors || null;
+      window._scrapedLogoUrl = biz.logoUrl || biz.ogImage || null;
+
+      // Make it feel like THEIR site: theme the widget + render their homepage behind it
+      applyBrandTheme(biz.brandColors);
+      renderBackdrop(url, biz);
 
       // Auto-scroll to the activate button
       setTimeout(() => {
@@ -578,7 +654,7 @@
     prompt += '- Never make up information you were not given. If you don\'t know, say "I\'d recommend calling us directly" and provide the phone number if available.\n';
     prompt += '- Never provide medical, legal, or financial advice.\n';
     prompt += '- If someone seems to have an emergency, tell them to call 911 or go to the nearest emergency room.\n';
-    prompt += '- Keep it conversational. No bullet points or markdown formatting — this is a chat, not a document.\n';
+    prompt += '- Keep it conversational and short. You MAY use markdown links like [our services](https://...) to send customers to a page — but no other markdown, no bullet lists.\n';
     prompt += '- If asked about pricing you weren\'t given specifics for, say "Pricing depends on your specific needs — I\'d love to get you a personalized quote" and suggest booking or calling.\n';
 
     // Site pages — let the chatbot link to real pages
@@ -589,7 +665,7 @@
         if (page.purpose) prompt += ` (${page.purpose})`;
         prompt += '\n';
       }
-      prompt += 'When a customer asks about something covered by a page, include the link naturally: "You can check out our [topic] here: [url]"\n';
+      prompt += 'GUIDE customers to the right page — do not just answer, take them there. When a question relates to a page, reply briefly and include a markdown link to that exact page, e.g. "Sure — here are our [services](URL)". Linking the specific page is how you turn a question into a visit.\n';
     }
 
     if (config.websiteUrl) {
@@ -620,17 +696,16 @@
     const id = 'msg-' + (++messageCounter);
     div.id = id;
     div.className = 'message ' + type;
-    // Make URLs clickable, phone numbers tappable
     if (type === 'bot') {
-      let html = text
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#6366f1;text-decoration:underline;">$1</a>')
-        .replace(/\((\d{3})\)\s*(\d{3})[-.](\d{4})/g, '<a href="tel:$1$2$3" style="color:#6366f1;text-decoration:underline;">($1) $2-$3</a>');
-      div.innerHTML = html;
+      div.innerHTML = formatBotText(text);
+      chatBody.appendChild(div);
+      // Mini-preview: if the bot pointed to one of the business's real pages, show it inline
+      const page = firstSitePageUrl(text);
+      if (page) showPagePreview(page.url, page.label);
     } else {
       div.textContent = text;
+      chatBody.appendChild(div);
     }
-    chatBody.appendChild(div);
     chatBody.scrollTop = chatBody.scrollHeight;
     return id;
   }
@@ -645,6 +720,114 @@
     bar.textContent = text;
     bar.className = 'status-bar ' + (type || '');
     if (type !== 'ready') setTimeout(() => { bar.textContent = ''; }, 3000);
+  }
+
+  // ═══════════════ DEMO IS THE PROOF — brand theme, backdrop, link previews ═══════════════
+
+  function _hexToRgb(hex) {
+    if (!hex) return null;
+    hex = hex.trim().replace('#','');
+    if (/^[0-9a-fA-F]{3}$/.test(hex)) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    if (!/^[0-9a-fA-F]{6}$/.test(hex)) return null;
+    return { r: parseInt(hex.slice(0,2),16), g: parseInt(hex.slice(2,4),16), b: parseInt(hex.slice(4,6),16) };
+  }
+  function _readableInk(hex) {
+    const c = _hexToRgb(hex); if (!c) return '#0f172a';
+    const L = (0.299*c.r + 0.587*c.g + 0.114*c.b) / 255;
+    return L > 0.62 ? '#0f172a' : '#ffffff';
+  }
+  // Theme the widget (and backdrop) to the scraped brand colors
+  function applyBrandTheme(colors) {
+    if (!colors || !colors.primary) return;
+    const root = document.documentElement.style;
+    root.setProperty('--brand-primary', colors.primary);
+    root.setProperty('--brand-accent', colors.accent || colors.primary);
+    root.setProperty('--brand-ink', _readableInk(colors.primary));
+  }
+
+  // Render their homepage behind the widget: instant branded mock + real screenshot on top
+  function renderBackdrop(url, biz) {
+    const name = (biz.businessName || document.getElementById('bizName').value || 'Your Business').trim();
+    const tagline = biz.description ? (biz.description.split('. ')[0].replace(/\.$/,'') + '.') : 'Welcome — how can we help you today?';
+    document.getElementById('websitePlaceholder').style.display = 'none';
+    document.getElementById('bmLogoText').textContent = name;
+    document.getElementById('bmHeroName').textContent = name;
+    document.getElementById('bmHeroTagline').textContent = tagline;
+    const logo = biz.logoUrl || biz.ogImage;
+    const logoImg = document.getElementById('bmLogo');
+    if (logo) {
+      logoImg.onload = () => { if (logoImg.naturalWidth > 20) document.getElementById('bmLogoText').style.display = 'none'; };
+      logoImg.onerror = () => { logoImg.style.display = 'none'; };
+      logoImg.src = logo; logoImg.style.display = 'block';
+    }
+    const nav = document.getElementById('bmNav');
+    nav.innerHTML = '';
+    (biz.sitePages || []).slice(0,5).forEach(p => { const s = document.createElement('span'); s.textContent = p.label; nav.appendChild(s); });
+    document.getElementById('brandedMock').classList.add('show');
+
+    // Real homepage screenshot fades in over the mock when ready (mShots, free, no key)
+    const loading = document.getElementById('backdropLoading');
+    const shot = document.getElementById('siteScreenshot');
+    loading.classList.add('show');
+    const shotUrl = 'https://s.wordpress.com/mshots/v1/' + encodeURIComponent(url) + '?w=1280&h=900';
+    let tries = 0;
+    function loadShot() { tries++; shot.src = shotUrl + '&r=' + tries; }
+    shot.onload = () => {
+      if (shot.naturalWidth > 400) { shot.classList.add('loaded'); loading.classList.remove('show'); }
+      else if (tries < 5) { setTimeout(loadShot, 2500); }
+      else { loading.classList.remove('show'); }
+    };
+    shot.onerror = () => { if (tries < 5) setTimeout(loadShot, 2500); else loading.classList.remove('show'); };
+    loadShot();
+    setTimeout(() => loading.classList.remove('show'), 14000);
+  }
+
+  // Turn bot text into clickable real links (open the actual page) + tap-to-call
+  function formatBotText(text) {
+    text = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+      '<a class="ag-link" href="$2" target="_blank" rel="noopener">$1</a>');
+    text = text.replace(/(^|[^"'>=])(https?:\/\/[^\s<]+)/g, function(m, pre, url) {
+      return pre + '<a class="ag-link" href="' + url + '" target="_blank" rel="noopener">' + url.replace(/^https?:\/\//,'') + '</a>';
+    });
+    text = text.replace(/\((\d{3})\)\s*(\d{3})[-.](\d{4})/g, '<a class="ag-link" href="tel:$1$2$3">($1) $2-$3</a>');
+    return text.replace(/\n/g, '<br>');
+  }
+
+  // Find the first link in a bot message that points to one of the business's own pages
+  function firstSitePageUrl(text) {
+    let host = '';
+    try { host = new URL(window._scrapedSourceUrl).host.replace(/^www\./,''); } catch(e) { return null; }
+    if (!host) return null;
+    const links = [];
+    let m;
+    const md = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
+    while ((m = md.exec(text)) !== null) links.push({ label: m[1], url: m[2] });
+    const bare = /(?:^|[^([])(https?:\/\/[^\s<)]+)/g;
+    while ((m = bare.exec(text)) !== null) links.push({ label: '', url: m[1] });
+    for (const l of links) {
+      try { if (new URL(l.url).host.replace(/^www\./,'') === host) return l; } catch(e) {}
+    }
+    return null;
+  }
+
+  // Inline mini-preview card: shows the page screenshot, opens the real page on click
+  const _previewed = {};
+  function showPagePreview(url, label) {
+    if (_previewed[url]) return;
+    _previewed[url] = true;
+    const chatBody = document.getElementById('chatBody');
+    const card = document.createElement('div');
+    card.className = 'preview-card';
+    const shot = 'https://s.wordpress.com/mshots/v1/' + encodeURIComponent(url) + '?w=600&h=360';
+    let title = (label && label.length > 1) ? label : '';
+    if (!title) { try { title = decodeURIComponent(new URL(url).pathname).replace(/[\/\-_]+/g,' ').trim() || 'Visit page'; } catch(e) { title = 'Visit page'; } }
+    card.innerHTML =
+      '<img src="' + shot + '" alt="" onerror="this.style.display=\'none\'">' +
+      '<div class="pc-body"><div class="pc-title">' + title.replace(/</g,'&lt;') + '</div>' +
+      '<a class="pc-open" href="' + url + '" target="_blank" rel="noopener">Open page ↗</a></div>';
+    chatBody.appendChild(card);
+    chatBody.scrollTop = chatBody.scrollHeight;
   }
 </script>
 </body>

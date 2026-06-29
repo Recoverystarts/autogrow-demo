@@ -39,7 +39,7 @@ export async function onRequestPost(context) {
     const domain = urlObj.origin;
 
     // ═══ STEP 1: Fetch the website ═══
-    let html, pageContent, siteLinks, phoneLinks, mapLinks;
+    let html, pageContent, siteLinks, phoneLinks, mapLinks, brandColors, logoUrl, ogImage;
     try {
       const siteResponse = await fetch(baseUrl, {
         headers: {
@@ -99,6 +99,54 @@ export async function onRequestPost(context) {
       mapLinks = [];
       while ((match = mapsRegex.exec(html)) !== null) {
         mapLinks.push(match[0]);
+      }
+
+      // ═══ BRAND COLORS — pull the palette so the widget can match the site ═══
+      const absUrl = (u) => {
+        if (!u) return null;
+        u = u.trim();
+        if (u.startsWith('//')) return urlObj.protocol + u;
+        if (u.startsWith('/')) return domain + u;
+        if (!u.startsWith('http')) return domain + '/' + u.replace(/^\.?\//, '');
+        return u;
+      };
+      const colorCounts = {};
+      const tallyColor = (raw) => {
+        let hex = raw.toLowerCase();
+        if (/^#[0-9a-f]{3}$/.test(hex)) hex = '#' + hex[1]+hex[1]+hex[2]+hex[2]+hex[3]+hex[3];
+        if (!/^#[0-9a-f]{6}$/.test(hex)) return;
+        const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+        const max = Math.max(r,g,b), min = Math.min(r,g,b);
+        const light = (max+min)/2/255;
+        const sat = max === 0 ? 0 : (max-min)/max;
+        if (light > 0.93 || light < 0.06) return;     // skip near-white / near-black
+        if (sat < 0.18) return;                        // skip grays — we want brand color
+        colorCounts[hex] = (colorCounts[hex]||0) + 1;
+      };
+      let cmatch;
+      const hexRe = /#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b/g;
+      while ((cmatch = hexRe.exec(html)) !== null) tallyColor(cmatch[0]);
+      const rgbRe = /rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/g;
+      while ((cmatch = rgbRe.exec(html)) !== null) {
+        tallyColor('#' + [cmatch[1],cmatch[2],cmatch[3]].map(n => Math.min(255,+n).toString(16).padStart(2,'0')).join(''));
+      }
+      let sorted = Object.entries(colorCounts).sort((a,b) => b[1]-a[1]).map(e => e[0]);
+      const themeMeta = html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']/i);
+      if (themeMeta && /^#[0-9a-fA-F]{3,6}$/.test(themeMeta[1].trim())) {
+        let t = themeMeta[1].trim().toLowerCase();
+        if (/^#[0-9a-f]{3}$/.test(t)) t = '#' + t[1]+t[1]+t[2]+t[2]+t[3]+t[3];
+        sorted = [t, ...sorted.filter(c => c !== t)];   // theme-color wins as primary
+      }
+      sorted = [...new Set(sorted)];
+      brandColors = sorted.length ? { primary: sorted[0], accent: sorted[1] || sorted[0], all: sorted.slice(0,6) } : null;
+
+      // Logo (for branded backdrop + avatar) and og:image (hero)
+      const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+      ogImage = ogMatch ? absUrl(ogMatch[1]) : null;
+      const logoTag = html.match(/<img[^>]*(?:class|id|alt|src)=["'][^"']*logo[^"']*["'][^>]*>/i);
+      if (logoTag) {
+        const src = logoTag[0].match(/\bsrc=["']([^"']+)["']/i);
+        logoUrl = src ? absUrl(src[1]) : null;
       }
 
       // Strip HTML for text analysis
@@ -242,6 +290,11 @@ ${pageContent}${linksContext}`;
     if (mapLinks.length > 0) {
       businessInfo.mapUrl = mapLinks[0];
     }
+
+    // Brand styling so the demo can match the site's look
+    businessInfo.brandColors = brandColors;
+    businessInfo.logoUrl = logoUrl;
+    businessInfo.ogImage = ogImage;
 
     return new Response(JSON.stringify({
       success: true,
