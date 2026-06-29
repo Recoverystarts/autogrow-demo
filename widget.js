@@ -78,6 +78,13 @@ RULES:
     prompt: config.prompt || `You are a helpful AI assistant. Be concise and friendly.`
   };
 
+  // ═══ BRAND THEME — adopt the client's site colors ═══
+  function hexToRgb(h){ if(!h) return null; h=String(h).trim().replace('#',''); if(/^[0-9a-fA-F]{3}$/.test(h)) h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; if(!/^[0-9a-fA-F]{6}$/.test(h)) return null; return {r:parseInt(h.slice(0,2),16),g:parseInt(h.slice(2,4),16),b:parseInt(h.slice(4,6),16)}; }
+  function readableInk(h){ const x=hexToRgb(h); if(!x) return '#0f172a'; return ((0.299*x.r+0.587*x.g+0.114*x.b)/255) > 0.62 ? '#0f172a' : '#ffffff'; }
+  const primary = (config.colors && config.colors.primary) || c.color || '#34d399';
+  const accent = (config.colors && config.colors.accent) || primary;
+  const inkColor = readableInk(primary);
+
   // ═══ STATE ═══
   let isOpen = false;
   let chatHistory = [];
@@ -88,7 +95,7 @@ RULES:
   styles.textContent = `
     #ag-widget-bubble {
       position: fixed; bottom: 24px; right: 24px; width: 60px; height: 60px;
-      border-radius: 50%; background: ${c.color}; color: #0f172a;
+      border-radius: 50%; background: ${primary}; color: ${inkColor};
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; z-index: 99999; border: none;
       box-shadow: 0 4px 20px rgba(0,0,0,0.15);
@@ -115,8 +122,8 @@ RULES:
     }
     #ag-widget-avatar {
       width: 36px; height: 36px; border-radius: 50%;
-      background: ${c.color}; display: flex; align-items: center; justify-content: center;
-      font-size: 0.9rem; font-weight: 700; color: #0f172a; flex-shrink: 0;
+      background: ${primary}; display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem; font-weight: 700; color: ${inkColor}; flex-shrink: 0;
     }
     #ag-widget-header-info h3 { font-size: 0.95rem; font-weight: 600; margin: 0; }
     #ag-widget-header-info p { font-size: 0.72rem; color: #94a3b8; margin: 2px 0 0 0; }
@@ -151,7 +158,7 @@ RULES:
       flex: 1; border: 1px solid #e2e8f0; border-radius: 20px; padding: 10px 16px;
       font-size: 0.88rem; outline: none; font-family: inherit;
     }
-    #ag-widget-input:focus { border-color: ${c.color}; }
+    #ag-widget-input:focus { border-color: ${accent}; }
     #ag-widget-send {
       width: 38px; height: 38px; border-radius: 50%; border: none;
       background: #1e293b; color: white; cursor: pointer; font-size: 1rem;
@@ -229,11 +236,11 @@ RULES:
     // Escape HTML first (prevent XSS)
     text = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     // Convert markdown links [text](url) to clickable links
-    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#34d399;text-decoration:underline;">$1</a>');
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:' + accent + ';text-decoration:underline;">$1</a>');
     // Convert remaining bare URLs to clickable links
     text = text.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
       // Don't double-link URLs already in an <a> tag
-      return '<a href="' + url + '" target="_blank" style="color:#34d399;text-decoration:underline;">' + url.replace(/^https?:\/\//, '') + '</a>';
+      return '<a href="' + url + '" target="_blank" rel="noopener" style="color:' + accent + ';text-decoration:underline;">' + url.replace(/^https?:\/\//, '') + '</a>';
     });
     // Convert newlines to <br>
     text = text.replace(/\n/g, '<br>');
