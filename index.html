@@ -219,6 +219,69 @@
   .preview-card .pc-title { font-size: 0.82rem; font-weight: 600; color: #1e293b; }
   .preview-card .pc-open { display: inline-block; margin-top: 5px; font-size: 0.76rem; font-weight: 600; color: var(--brand-accent); text-decoration: none; }
   .ag-link { color: var(--brand-accent); text-decoration: underline; cursor: pointer; font-weight: 500; }
+
+  /* Starter-question chips — keep the demo alive */
+  .starter-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+  .chip {
+    border: 1px solid var(--brand-accent); color: var(--brand-accent); background: #fff;
+    border-radius: 16px; padding: 6px 12px; font-size: 0.78rem; cursor: pointer;
+    transition: all 0.15s; font-family: inherit; line-height: 1.2;
+  }
+  .chip:hover { background: var(--brand-accent); color: #fff; }
+
+  /* "Put this on your site" close + modal — the online sale */
+  .deploy-cta {
+    position: absolute; bottom: 24px; left: 24px; z-index: 11;
+    background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+    color: var(--brand-ink); border: none; border-radius: 12px; padding: 13px 20px;
+    font-family: 'Inter', sans-serif; font-size: 0.9rem; font-weight: 700; cursor: pointer;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.18); display: none; align-items: center; gap: 8px;
+    animation: fadeIn 0.4s ease;
+  }
+  .deploy-cta.show { display: flex; }
+  .deploy-cta:hover { transform: translateY(-2px); }
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.72); z-index: 1000;
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #fff; border-radius: 18px; max-width: 540px; width: 100%; position: relative;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.4); animation: fadeIn 0.3s ease; max-height: 92vh; overflow-y: auto;
+  }
+  .modal-head { padding: 24px 26px 6px; }
+  .modal-head h2 { font-size: 1.35rem; color: #0f172a; margin-bottom: 4px; }
+  .modal-head p { font-size: 0.9rem; color: #64748b; }
+  .modal-body { padding: 12px 26px 24px; }
+  .embed-box {
+    background: #0f172a; color: #e2e8f0; border-radius: 10px; padding: 14px;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.72rem;
+    white-space: pre-wrap; word-break: break-all; line-height: 1.55;
+  }
+  .copy-btn {
+    margin-top: 10px; background: #1e293b; color: #fff; border: none; border-radius: 8px;
+    padding: 9px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  }
+  .copy-btn:hover { background: #334155; }
+  .lead-form { margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 18px; }
+  .lead-form h3 { font-size: 1.02rem; color: #0f172a; margin-bottom: 6px; }
+  .lead-form p { font-size: 0.84rem; color: #64748b; margin-bottom: 12px; }
+  .lead-form input {
+    width: 100%; border: 1px solid #cbd5e1; border-radius: 9px; padding: 11px 14px;
+    font-family: inherit; font-size: 0.9rem; margin-bottom: 10px; outline: none;
+  }
+  .lead-form input:focus { border-color: var(--brand-accent); }
+  .lead-submit {
+    width: 100%; padding: 13px; background: linear-gradient(135deg,#34d399,#06b6d4);
+    color: #0f172a; border: none; border-radius: 10px; font-weight: 700; font-size: 0.95rem;
+    cursor: pointer; font-family: inherit; transition: transform 0.2s;
+  }
+  .lead-submit:hover { transform: translateY(-1px); }
+  .modal-close {
+    position: absolute; top: 14px; right: 18px; background: none; border: none;
+    font-size: 1.6rem; color: #94a3b8; cursor: pointer; line-height: 1; z-index: 2;
+  }
+  .lead-status { font-size: 0.85rem; margin-top: 10px; text-align: center; min-height: 18px; }
 </style>
 </head>
 <body>
@@ -354,8 +417,33 @@
         Powered by <a href="https://autogrow.org">AutoGrow AI</a>
       </div>
     </div>
+
+    <button class="deploy-cta" id="deployCta" onclick="openDeployModal()">🚀 Put this chatbot on MY website →</button>
   </div>
 
+</div>
+
+<!-- ═══ DEPLOY / CLOSE MODAL — the online sale ═══ -->
+<div class="modal-overlay" id="deployModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeDeployModal()">&times;</button>
+    <div class="modal-head">
+      <h2 id="modalTitle">Put this chatbot on your site</h2>
+      <p>One line of code. It matches your brand, knows your business, and works 24/7.</p>
+    </div>
+    <div class="modal-body">
+      <div class="embed-box" id="embedBox"></div>
+      <button class="copy-btn" id="copyBtn" onclick="copyEmbed()">📋 Copy embed code</button>
+      <div class="lead-form">
+        <h3>Want us to set it up for you — free?</h3>
+        <p>Drop your email and we'll have your chatbot live on your website this week. No setup fee.</p>
+        <input type="email" id="leadEmail" placeholder="you@yourbusiness.com" autocomplete="email">
+        <input type="text" id="leadName" placeholder="Your name (optional)" autocomplete="name">
+        <button class="lead-submit" onclick="submitLead()">Get my chatbot live this week →</button>
+        <div class="lead-status" id="leadStatus"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -531,6 +619,8 @@
     const toneMap = { friendly: 'friendly and warm', professional: 'professional', casual: 'casual and fun' };
     const greeting = buildGreeting(businessConfig);
     addMessage('bot', greeting);
+    renderStarterChips(businessConfig);
+    document.getElementById('deployCta').classList.add('show');
     showStatus('Chatbot active — try asking a question!', 'ready');
   }
 
@@ -828,6 +918,83 @@
       '<a class="pc-open" href="' + url + '" target="_blank" rel="noopener">Open page ↗</a></div>';
     chatBody.appendChild(card);
     chatBody.scrollTop = chatBody.scrollHeight;
+  }
+
+  // ═══ Starter-question chips — never a blank chat ═══
+  function renderStarterChips(config) {
+    const defaults = {
+      dental: ['Do you take new patients?','Do you accept insurance?','What are your hours?'],
+      barbershop: ['Do you take walk-ins?','How much is a haircut?','What are your hours?'],
+      restaurant: ['Do you take reservations?','Can I see the menu?','Are you open now?'],
+      hvac: ['Do you offer emergency service?','Can I get a quote?','What areas do you serve?'],
+      realestate: ['Do you have listings?','Can I book a viewing?','How do I get started?'],
+      fitness: ['What memberships do you offer?','Can I book a class?','What are your hours?'],
+      auto: ['Can I book a service?','Do you do estimates?','What are your hours?'],
+      medical: ['Are you taking new patients?','Do you take my insurance?','What are your hours?'],
+      legal: ['Do you offer consultations?','What areas do you practice?','How do I book?'],
+      retail: ['What are your hours?','Do you ship?','Is it in stock?']
+    };
+    let qs = [];
+    if (config.faqs) qs = config.faqs.split('\n').map(s => s.trim()).filter(Boolean).slice(0,3);
+    if (qs.length < 3) qs = defaults[config.industry] || ['What services do you offer?','What are your hours?','How do I book?'];
+    const wrap = document.createElement('div');
+    wrap.className = 'starter-chips';
+    qs.slice(0,3).forEach(q => {
+      const b = document.createElement('button');
+      b.className = 'chip'; b.textContent = q;
+      b.onclick = () => { document.getElementById('chatInput').value = q; sendMessage(); wrap.remove(); };
+      wrap.appendChild(b);
+    });
+    document.getElementById('chatBody').appendChild(wrap);
+  }
+
+  // ═══ Deploy / close — generate a real branded embed snippet + capture the lead ═══
+  function buildEmbedSnippet(config) {
+    const colors = window._scrapedBrandColors || null;
+    const shortDesc = (config.description || '').split('. ').slice(0,2).join('. ').trim();
+    const cfg = {
+      business: config.name,
+      greeting: buildGreeting(config),
+      prompt: 'You are the AI assistant for ' + config.name + '. ' + shortDesc +
+        (config.phone ? ' Phone: ' + config.phone + '.' : '') +
+        ' Be warm and concise, answer customer questions, and guide them to book or call. Never make up information you were not given.'
+    };
+    if (colors && colors.primary) cfg.colors = { primary: colors.primary, accent: colors.accent || colors.primary };
+    const json = JSON.stringify(cfg);
+    return '<script src="https://autogrow-demo.pages.dev/widget.js"\n  data-config=\'' + json + '\'\n  data-api="https://autogrow-demo.pages.dev/api/chat"><\/script>';
+  }
+  function openDeployModal() {
+    document.getElementById('modalTitle').textContent = 'Put this chatbot on ' + (businessConfig.name || 'your site');
+    document.getElementById('embedBox').textContent = buildEmbedSnippet(businessConfig);
+    document.getElementById('deployModal').classList.add('show');
+  }
+  function closeDeployModal() { document.getElementById('deployModal').classList.remove('show'); }
+  function copyEmbed() {
+    const txt = document.getElementById('embedBox').textContent;
+    navigator.clipboard.writeText(txt).then(() => {
+      const b = document.getElementById('copyBtn'); b.textContent = '✓ Copied!';
+      setTimeout(() => { b.textContent = '📋 Copy embed code'; }, 1800);
+    });
+  }
+  async function submitLead() {
+    const email = document.getElementById('leadEmail').value.trim();
+    const name = document.getElementById('leadName').value.trim();
+    const status = document.getElementById('leadStatus');
+    if (!email || !/.+@.+\..+/.test(email)) { status.textContent = 'Please enter a valid email.'; status.style.color = '#f87171'; return; }
+    status.textContent = 'Sending…'; status.style.color = '#64748b';
+    try {
+      const res = await fetch('/api/lead', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name, business: businessConfig.name || '', website: window._scrapedSourceUrl || '', industry: businessConfig.industry || '' })
+      });
+      if (!res.ok) throw new Error('bad status');
+      status.textContent = "✓ Got it! We'll reach out within 24 hours to get you live.";
+      status.style.color = '#16a34a';
+      document.getElementById('leadEmail').value = ''; document.getElementById('leadName').value = '';
+    } catch (e) {
+      status.innerHTML = "Couldn't send — email us directly: <a href='mailto:derick@autogrow.org' style='color:var(--brand-accent)'>derick@autogrow.org</a>";
+      status.style.color = '#f87171';
+    }
   }
 </script>
 </body>
