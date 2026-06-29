@@ -374,6 +374,12 @@
       status.innerHTML = '✅ <strong>Auto-filled!</strong> Review the details below, then activate.';
       status.style.color = '#34d399';
 
+      // Store site intelligence for the chatbot
+      window._scrapedSitePages = biz.sitePages || [];
+      window._scrapedMapUrl = biz.mapUrl || null;
+      window._scrapedLocation = biz.location || null;
+      window._scrapedSourceUrl = url;
+
       // Auto-scroll to the activate button
       setTimeout(() => {
         document.getElementById('activateBtn').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -422,7 +428,11 @@
       faqs: document.getElementById('bizFAQs').value.trim(),
       hours: document.getElementById('bizHours').value.trim(),
       phone: document.getElementById('bizPhone').value.trim(),
-      tone: document.getElementById('bizTone').value
+      tone: document.getElementById('bizTone').value,
+      sitePages: window._scrapedSitePages || [],
+      mapUrl: window._scrapedMapUrl || null,
+      location: window._scrapedLocation || null,
+      websiteUrl: window._scrapedSourceUrl || null
     };
 
     botActive = true;
@@ -571,6 +581,33 @@
     prompt += '- Keep it conversational. No bullet points or markdown formatting — this is a chat, not a document.\n';
     prompt += '- If asked about pricing you weren\'t given specifics for, say "Pricing depends on your specific needs — I\'d love to get you a personalized quote" and suggest booking or calling.\n';
 
+    // Site pages — let the chatbot link to real pages
+    if (config.sitePages && config.sitePages.length > 0) {
+      prompt += '\nWEBSITE PAGES — Direct customers to these when relevant:\n';
+      for (const page of config.sitePages) {
+        prompt += `- ${page.label}: ${page.url}`;
+        if (page.purpose) prompt += ` (${page.purpose})`;
+        prompt += '\n';
+      }
+      prompt += 'When a customer asks about something covered by a page, include the link naturally: "You can check out our [topic] here: [url]"\n';
+    }
+
+    if (config.websiteUrl) {
+      prompt += `\nWEBSITE: ${config.websiteUrl}\n`;
+    }
+
+    if (config.location) {
+      prompt += `LOCATION: ${config.location}\n`;
+      if (config.mapUrl) {
+        prompt += `MAP: ${config.mapUrl}\n`;
+      }
+      prompt += 'When giving the address or directing someone to visit, you can mention the location.\n';
+    }
+
+    if (config.phone) {
+      prompt += '\nWhen mentioning the phone number, format it clearly so the customer can easily call.\n';
+    }
+
     return prompt;
   }
 
@@ -583,7 +620,16 @@
     const id = 'msg-' + (++messageCounter);
     div.id = id;
     div.className = 'message ' + type;
-    div.textContent = text;
+    // Make URLs clickable, phone numbers tappable
+    if (type === 'bot') {
+      let html = text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#6366f1;text-decoration:underline;">$1</a>')
+        .replace(/\((\d{3})\)\s*(\d{3})[-.](\d{4})/g, '<a href="tel:$1$2$3" style="color:#6366f1;text-decoration:underline;">($1) $2-$3</a>');
+      div.innerHTML = html;
+    } else {
+      div.textContent = text;
+    }
     chatBody.appendChild(div);
     chatBody.scrollTop = chatBody.scrollHeight;
     return id;
