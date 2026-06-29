@@ -31,7 +31,7 @@ export async function onRequestPost(context) {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: 'AutoGrow Leads <onboarding@resend.dev>',
+        from: 'AutoGrow Leads <leads@autogrow.org>',
         to: ['derick@autogrow.org'],
         reply_to: email,
         subject: 'New AutoGrow lead: ' + (business || email),
