@@ -292,6 +292,7 @@
     <div class="config-header">
       <h1><span class="logo">AutoGrow</span> Demo Platform</h1>
       <p>Build a chatbot for any business in 60 seconds</p>
+      <a href="/sample-client" target="_blank" style="display:inline-block;margin-top:8px;font-size:0.78rem;color:#34d399;text-decoration:none;font-weight:600;">✨ See a finished chatbot live on a real business site →</a>
     </div>
 
     <div class="config-body">
@@ -621,6 +622,7 @@
     addMessage('bot', greeting);
     renderStarterChips(businessConfig);
     document.getElementById('deployCta').classList.add('show');
+    showRoiNote(businessConfig);
     showStatus('Chatbot active — try asking a question!', 'ready');
   }
 
@@ -918,6 +920,17 @@
       '<a class="pc-open" href="' + url + '" target="_blank" rel="noopener">Open page ↗</a></div>';
     chatBody.appendChild(card);
     chatBody.scrollTop = chatBody.scrollHeight;
+  }
+
+  // ═══ ROI nudge — the Hormozi line that frames value ═══
+  function showRoiNote(config) {
+    if (document.getElementById('roiNote')) return;
+    const panel = document.querySelector('.preview-panel');
+    const n = document.createElement('div');
+    n.id = 'roiNote';
+    n.style.cssText = 'position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:11;background:rgba(15,23,42,0.92);color:#e2e8f0;padding:9px 16px;border-radius:20px;font-size:0.78rem;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.22);max-width:82%;text-align:center;animation:fadeIn 0.5s ease;';
+    n.innerHTML = "💡 A chatbot like this answers the <strong style=\"color:#34d399;\">30–50 after-hours questions/month</strong> you're currently missing.";
+    panel.appendChild(n);
   }
 
   // ═══ Starter-question chips — never a blank chat ═══
