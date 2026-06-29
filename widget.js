@@ -225,13 +225,32 @@ RULES:
   // ═══ MESSAGES ═══
   let msgCounter = 0;
 
+  function linkify(text) {
+    // Escape HTML first (prevent XSS)
+    text = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    // Convert markdown links [text](url) to clickable links
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#34d399;text-decoration:underline;">$1</a>');
+    // Convert remaining bare URLs to clickable links
+    text = text.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
+      // Don't double-link URLs already in an <a> tag
+      return '<a href="' + url + '" target="_blank" style="color:#34d399;text-decoration:underline;">' + url.replace(/^https?:\/\//, '') + '</a>';
+    });
+    // Convert newlines to <br>
+    text = text.replace(/\n/g, '<br>');
+    return text;
+  }
+
   function addMessage(type, text) {
     const body = document.getElementById('ag-widget-body');
     const div = document.createElement('div');
     const id = 'ag-msg-' + (++msgCounter);
     div.id = id;
     div.className = 'ag-msg ' + type;
-    div.textContent = text;
+    if (type === 'user') {
+      div.textContent = text;
+    } else {
+      div.innerHTML = linkify(text);
+    }
     body.appendChild(div);
     body.scrollTop = body.scrollHeight;
     return id;
