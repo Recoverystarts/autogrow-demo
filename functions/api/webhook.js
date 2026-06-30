@@ -61,6 +61,20 @@ async function verifyStripeSignature(payload, sigHeader, secret) {
   return expectedSig === signature;
 }
 
+// Cancel a Stripe subscription immediately (used for auto-canceling accidental duplicates)
+async function cancelStripeSubscription(subscriptionId, secretKey) {
+  try {
+    const res = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${secretKey}` }
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Failed to cancel duplicate subscription:', err);
+    return false;
+  }
+}
+
 export async function onRequestPost(context) {
   const STRIPE_WEBHOOK_SECRET = context.env.STRIPE_WEBHOOK_SECRET;
   const STRIPE_SECRET_KEY = context.env.STRIPE_SECRET_KEY;
@@ -99,11 +113,32 @@ export async function onRequestPost(context) {
         // Only process subscription checkouts
         if (session.mode !== 'subscription') break;
 
-        const clientId = generateClientId();
         const subscriptionId = session.subscription;
         const customerId = session.customer;
         const customerEmail = session.customer_details?.email || '';
         const customerName = session.customer_details?.name || '';
+        const normalizedEmail = customerEmail.toLowerCase().trim();
+
+        // Duplicate-account check — same email already has an active client record
+        if (normalizedEmail) {
+          const existingClientId = await CLIENTS.get(`email:${normalizedEmail}`);
+          if (existingClientId) {
+            const existingRecordStr = await CLIENTS.get(`client:${existingClientId}`);
+            const existingRecord = existingRecordStr ? JSON.parse(existingRecordStr) : null;
+
+            if (existingRecord && existingRecord.status === 'active') {
+              // This is a second signup on an email that already has an active subscription.
+              // Cancel the new subscription immediately so it never bills, keep the
+              // original record as the source of truth, and log it clearly.
+              await cancelStripeSubscription(subscriptionId, STRIPE_SECRET_KEY);
+              await CLIENTS.put(`session:${session.id}`, existingClientId); // welcome page still resolves correctly
+              console.log(`⚠️ Duplicate signup for ${normalizedEmail} — new subscription ${subscriptionId} auto-canceled, existing client ${existingClientId} kept active`);
+              break;
+            }
+          }
+        }
+
+        const clientId = generateClientId();
 
         const clientRecord = {
           client_id: clientId,
@@ -118,10 +153,13 @@ export async function onRequestPost(context) {
           checkout_session_id: session.id,
         };
 
-        // Store in KV with two keys for bidirectional lookup
+        // Store in KV with indexes for lookup by client_id, subscription_id, session_id, and email
         await CLIENTS.put(`client:${clientId}`, JSON.stringify(clientRecord));
         await CLIENTS.put(`stripe:${subscriptionId}`, clientId);
         await CLIENTS.put(`session:${session.id}`, clientId);
+        if (normalizedEmail) {
+          await CLIENTS.put(`email:${normalizedEmail}`, clientId);
+        }
 
         console.log(`✅ Client created: ${clientId} for ${customerEmail}`);
         break;
