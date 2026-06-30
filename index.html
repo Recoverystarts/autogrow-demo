@@ -712,71 +712,99 @@
   }
 
   function buildSystemPrompt(config) {
-    const toneDesc = {
-      friendly: 'warm, friendly, and approachable — like a helpful receptionist who genuinely cares',
-      professional: 'professional and courteous — knowledgeable and efficient',
-      casual: 'casual, fun, and conversational — like chatting with a friend who works there'
+    // ═══ AUTOGROW FRONT DESK SYSTEM PROMPT v1.0 ═══
+    // This is the product. The quality of this prompt determines
+    // whether the chatbot is a front desk or a toy.
+
+    const toneMap = {
+      friendly: {
+        desc: 'warm, friendly, and genuinely helpful — like a great receptionist who remembers your name',
+        voice: 'Use natural, conversational language. Contractions are fine. Be personable but not over-the-top.',
+      },
+      professional: {
+        desc: 'professional, courteous, and efficient — knowledgeable and respectful of the customer\'s time',
+        voice: 'Use clear, polished language. Be direct and informative without being stiff or cold.',
+      },
+      casual: {
+        desc: 'casual, approachable, and real — like chatting with a friend who happens to work there',
+        voice: 'Use relaxed, everyday language. Keep it natural and easy. Humor is welcome when appropriate.',
+      },
     };
 
-    let prompt = `You are the AI assistant for ${config.name}`;
-    if (config.industry) prompt += `, a ${config.industry} business`;
-    prompt += '.\n\n';
+    const t = toneMap[config.tone] || toneMap.friendly;
+    const biz = config.name || 'the business';
+    const hasPages = config.sitePages && config.sitePages.length > 0;
+    const hasPhone = !!config.phone;
 
-    prompt += `PERSONALITY: Be ${toneDesc[config.tone] || toneDesc.friendly}. `;
-    prompt += 'Keep responses concise (2-3 sentences max unless the question requires detail). ';
-    prompt += 'Sound like someone who actually works at this business, not a generic robot.\n\n';
+    let p = '';
 
-    if (config.description) {
-      prompt += `ABOUT THE BUSINESS: ${config.description}\n\n`;
+    // ▸ IDENTITY
+    p += 'You are the front desk assistant for ' + biz;
+    if (config.industry) p += ', a ' + config.industry.toLowerCase() + ' business';
+    p += '. You answer questions, guide visitors to the right place, and help them take the next step — just like the best person who\'d pick up the phone at ' + biz + '.\n\n';
+
+    // ▸ PERSONALITY
+    p += 'YOUR VOICE: ' + t.desc + '. ' + t.voice + '\n\n';
+
+    // ▸ BUSINESS KNOWLEDGE
+    p += 'ABOUT ' + biz.toUpperCase() + ':\n';
+    if (config.description) p += config.description + '\n';
+    if (config.services && config.services.length > 0) {
+      p += '\nServices: ' + config.services.join(', ') + '.\n';
     }
+    if (config.hours) p += 'Hours: ' + config.hours + '\n';
+    if (config.phone) p += 'Phone: ' + config.phone + '\n';
+    if (config.location) p += 'Location: ' + config.location + '\n';
+    if (config.mapUrl) p += 'Directions: ' + config.mapUrl + '\n';
+    if (config.websiteUrl) p += 'Website: ' + config.websiteUrl + '\n';
+    p += '\n';
 
-    if (config.faqs) {
-      prompt += `COMMON QUESTIONS AND CONTEXT:\n${config.faqs}\n\n`;
-    }
-
-    if (config.hours) {
-      prompt += `BUSINESS HOURS: ${config.hours}\n`;
-    }
-
-    if (config.phone) {
-      prompt += `PHONE: ${config.phone}\n`;
-    }
-
-    prompt += '\nRULES:\n';
-    prompt += '- Never make up information you were not given. If you don\'t know, say "I\'d recommend calling us directly" and provide the phone number if available.\n';
-    prompt += '- Never provide medical, legal, or financial advice.\n';
-    prompt += '- If someone seems to have an emergency, tell them to call 911 or go to the nearest emergency room.\n';
-    prompt += '- Keep it conversational and short. You MAY use markdown links like [our services](https://...) to send customers to a page — but no other markdown, no bullet lists.\n';
-    prompt += '- If asked about pricing you weren\'t given specifics for, say "Pricing depends on your specific needs — I\'d love to get you a personalized quote" and suggest booking or calling.\n';
-
-    // Site pages — let the chatbot link to real pages
-    if (config.sitePages && config.sitePages.length > 0) {
-      prompt += '\nWEBSITE PAGES — Direct customers to these when relevant:\n';
+    // ▸ SITE PAGES — navigation brain
+    if (hasPages) {
+      p += 'WEBSITE PAGES YOU CAN DIRECT VISITORS TO:\n';
       for (const page of config.sitePages) {
-        prompt += `- ${page.label}: ${page.url}`;
-        if (page.purpose) prompt += ` (${page.purpose})`;
-        prompt += '\n';
+        p += '• "' + page.label + '" → ' + page.url;
+        if (page.purpose) p += ' — ' + page.purpose;
+        p += '\n';
       }
-      prompt += 'GUIDE customers to the right page — do not just answer, take them there. When a question relates to a page, reply briefly and include a markdown link to that exact page, e.g. "Sure — here are our [services](URL)". Linking the specific page is how you turn a question into a visit.\n';
+      p += '\n';
     }
 
-    if (config.websiteUrl) {
-      prompt += `\nWEBSITE: ${config.websiteUrl}\n`;
+    // ▸ FAQs
+    if (config.faqs) {
+      p += 'FREQUENTLY ASKED QUESTIONS AND KEY DETAILS:\n' + config.faqs + '\n\n';
     }
 
-    if (config.location) {
-      prompt += `LOCATION: ${config.location}\n`;
-      if (config.mapUrl) {
-        prompt += `MAP: ${config.mapUrl}\n`;
-      }
-      prompt += 'When giving the address or directing someone to visit, you can mention the location.\n';
+    // ▸ HOW TO BE A GREAT FRONT DESK
+    p += 'HOW TO HELP VISITORS:\n';
+    p += '1. FIGURE OUT WHAT THEY NEED. If their request is vague, ask one clarifying question — "Are you looking to book, or do you have a question about our services?"\n';
+    p += '2. ANSWER WITH REAL INFORMATION. Be specific — hours, services, pricing if you have it. No generic "we offer great service" answers.\n';
+
+    if (hasPages) {
+      p += '3. GUIDE THEM TO THE RIGHT PAGE. Answer briefly AND link them with a markdown link: "Check out our [services](' + (config.sitePages[0] ? config.sitePages[0].url : 'URL') + ')." This turns a question into a visit.\n';
+    } else {
+      p += '3. GUIDE THEM TO THE WEBSITE for more details.\n';
     }
 
-    if (config.phone) {
-      prompt += '\nWhen mentioning the phone number, format it clearly so the customer can easily call.\n';
+    p += '4. CAPTURE INTEREST NATURALLY. When someone shows buying intent (pricing, booking, quotes), offer to connect them: "I\'d love to get that set up — what\'s your email so we can reach out?" Only when there\'s real interest.\n';
+    
+    if (hasPhone) {
+      p += '5. ROUTE TO A HUMAN WHEN NEEDED. For complex questions or complaints: "Give us a call at ' + config.phone + ' and they\'ll take care of you."\n';
     }
+    p += '\n';
 
-    return prompt;
+    // ▸ RULES
+    p += 'RULES:\n';
+    p += '• NEVER make up information. If you don\'t know, say so and suggest calling' + (hasPhone ? ' at ' + config.phone : '') + '. Guessing wrong destroys trust.\n';
+    p += '• NEVER give medical, legal, or financial advice.\n';
+    p += '• NEVER say "as an AI" or "I\'m just a chatbot." You\'re the front desk.\n';
+    p += '• Keep responses to 2-3 sentences unless detail is genuinely needed.\n';
+    p += '• Use markdown links [text](url) for pages. No other markdown — no bullets, no bold. This is a conversation.\n';
+    p += '• For pricing you don\'t have: "That depends on what you need — what\'s the best way to reach you for a personalized quote?"\n';
+    p += '• If someone gives you their email or phone, confirm it: "Got it — [email]. Someone will be in touch shortly!"\n';
+    p += '• Emergencies: tell them to call 911.\n';
+
+    return p;
   }
 
   // ═══ UI HELPERS ═══
@@ -964,13 +992,34 @@
   // ═══ Deploy / close — generate a real branded embed snippet + capture the lead ═══
   function buildEmbedSnippet(config) {
     const colors = window._scrapedBrandColors || null;
-    const shortDesc = (config.description || '').split('. ').slice(0,2).join('. ').trim();
+    
+    // Build a real front-desk prompt for the deployed widget
+    const biz = config.name || 'the business';
+    const desc = (config.description || '').split('. ').slice(0, 2).join('. ').trim();
+    const services = (config.services || []).join(', ');
+    
+    let prompt = 'You are the front desk assistant for ' + biz + '. ';
+    if (desc) prompt += desc + ' ';
+    if (services) prompt += 'Services: ' + services + '. ';
+    if (config.hours) prompt += 'Hours: ' + config.hours + '. ';
+    if (config.phone) prompt += 'Phone: ' + config.phone + '. ';
+    if (config.location) prompt += 'Location: ' + config.location + '. ';
+    
+    prompt += 'Answer customer questions with real information. Guide visitors to the right page with markdown links [text](url). ';
+    prompt += 'When someone shows interest in booking or buying, offer to connect them: "What\'s your email so we can reach out?" ';
+    prompt += 'Never make up information — if you don\'t know, suggest calling' + (config.phone ? ' at ' + config.phone : '') + '. ';
+    prompt += 'Keep responses to 2-3 sentences. Be warm and conversational, not robotic.';
+    
+    // Include site pages in the prompt
+    if (config.sitePages && config.sitePages.length > 0) {
+      prompt += ' Website pages: ';
+      prompt += config.sitePages.map(p => p.label + ': ' + p.url).join('; ') + '.';
+    }
+    
     const cfg = {
       business: config.name,
       greeting: buildGreeting(config),
-      prompt: 'You are the AI assistant for ' + config.name + '. ' + shortDesc +
-        (config.phone ? ' Phone: ' + config.phone + '.' : '') +
-        ' Be warm and concise, answer customer questions, and guide them to book or call. Never make up information you were not given.'
+      prompt: prompt,
     };
     if (colors && colors.primary) cfg.colors = { primary: colors.primary, accent: colors.accent || colors.primary };
     const json = JSON.stringify(cfg);
