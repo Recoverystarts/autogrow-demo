@@ -253,16 +253,6 @@
   .modal-head h2 { font-size: 1.35rem; color: #0f172a; margin-bottom: 4px; }
   .modal-head p { font-size: 0.9rem; color: #64748b; }
   .modal-body { padding: 12px 26px 24px; }
-  .embed-box {
-    background: #0f172a; color: #e2e8f0; border-radius: 10px; padding: 14px;
-    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.72rem;
-    white-space: pre-wrap; word-break: break-all; line-height: 1.55;
-  }
-  .copy-btn {
-    margin-top: 10px; background: #1e293b; color: #fff; border: none; border-radius: 8px;
-    padding: 9px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
-  }
-  .copy-btn:hover { background: #334155; }
   .lead-form { margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 18px; }
   .lead-form h3 { font-size: 1.02rem; color: #0f172a; margin-bottom: 6px; }
   .lead-form p { font-size: 0.84rem; color: #64748b; margin-bottom: 12px; }
@@ -419,7 +409,7 @@
       </div>
     </div>
 
-    <button class="deploy-cta" id="deployCta" onclick="openDeployModal()">🚀 Put this chatbot on MY website →</button>
+    <button class="deploy-cta" id="deployCta" onclick="openDeployModal()">🚀 Get this chatbot on MY website →</button>
   </div>
 
 </div>
@@ -429,15 +419,29 @@
   <div class="modal">
     <button class="modal-close" onclick="closeDeployModal()">&times;</button>
     <div class="modal-head">
-      <h2 id="modalTitle">Put this chatbot on your site</h2>
-      <p>One line of code. It matches your brand, knows your business, and works 24/7.</p>
+      <h2 id="modalTitle">Get this chatbot on your site</h2>
+      <p>You just saw it work. Now put it to work — 24/7, on your website.</p>
     </div>
     <div class="modal-body">
-      <div class="embed-box" id="embedBox"></div>
-      <button class="copy-btn" id="copyBtn" onclick="copyEmbed()">📋 Copy embed code</button>
+      <div style="background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border-radius: 12px; padding: 20px; margin-bottom: 18px; border: 1px solid #bbf7d0;">
+        <div style="font-size: 1.1rem; font-weight: 700; color: #166534; margin-bottom: 8px;">14-day free trial — $0 to start</div>
+        <div style="font-size: 0.88rem; color: #15803d; line-height: 1.6;">
+          ✓ Your chatbot, branded to your business<br>
+          ✓ Knows every page of your website<br>
+          ✓ Guides customers, captures leads, answers questions<br>
+          ✓ One line of code — we'll help you install it<br>
+          ✓ Cancel anytime during the trial
+        </div>
+      </div>
+      <a href="https://buy.stripe.com/fZu6oH19C3o50cg6Q7bZe09" target="_blank" rel="noopener"
+         style="display: block; text-align: center; background: linear-gradient(135deg, #16a34a, #15803d); color: #fff; border-radius: 12px; padding: 15px 24px; font-size: 1.05rem; font-weight: 700; text-decoration: none; box-shadow: 0 4px 16px rgba(22,163,74,0.3); transition: transform 0.15s, box-shadow 0.15s;"
+         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 24px rgba(22,163,74,0.4)'"
+         onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 16px rgba(22,163,74,0.3)'"
+      >Start My Free Trial →</a>
+      <div style="text-align: center; font-size: 0.82rem; color: #94a3b8; margin-top: 8px;">$150 CAD/month after trial · No setup fee · Cancel anytime</div>
       <div class="lead-form">
-        <h3>Want us to set it up for you — free?</h3>
-        <p>Drop your email and we'll have your chatbot live on your website this week. No setup fee.</p>
+        <h3>Not ready yet? We'll set it up for you — free.</h3>
+        <p>Drop your email and we'll reach out to get your chatbot live this week.</p>
         <input type="email" id="leadEmail" placeholder="you@yourbusiness.com" autocomplete="email">
         <input type="text" id="leadName" placeholder="Your name (optional)" autocomplete="name">
         <button class="lead-submit" onclick="submitLead()">Get my chatbot live this week →</button>
@@ -990,55 +994,12 @@
     document.getElementById('chatBody').appendChild(wrap);
   }
 
-  // ═══ Deploy / close — generate a real branded embed snippet + capture the lead ═══
-  function buildEmbedSnippet(config) {
-    const colors = window._scrapedBrandColors || null;
-    
-    // Build a real front-desk prompt for the deployed widget
-    const biz = config.name || 'the business';
-    const desc = (config.description || '').split('. ').slice(0, 2).join('. ').trim();
-    const services = (config.services || []).join(', ');
-    
-    let prompt = 'You are the front desk assistant for ' + biz + '. ';
-    if (desc) prompt += desc + ' ';
-    if (services) prompt += 'Services: ' + services + '. ';
-    if (config.hours) prompt += 'Hours: ' + config.hours + '. ';
-    if (config.phone) prompt += 'Phone: ' + config.phone + '. ';
-    if (config.location) prompt += 'Location: ' + config.location + '. ';
-    
-    prompt += 'Answer customer questions with real information. Guide visitors to the right page with markdown links [text](url). ';
-    prompt += 'When someone shows interest in booking or buying, offer to connect them: "What\'s your email so we can reach out?" ';
-    prompt += 'Never make up information — if you don\'t know, suggest calling' + (config.phone ? ' at ' + config.phone : '') + '. ';
-    prompt += 'Keep responses to 2-3 sentences. Be warm and conversational, not robotic.';
-    
-    // Include site pages in the prompt
-    if (config.sitePages && config.sitePages.length > 0) {
-      prompt += ' Website pages: ';
-      prompt += config.sitePages.map(p => p.label + ': ' + p.url).join('; ') + '.';
-    }
-    
-    const cfg = {
-      business: config.name,
-      greeting: buildGreeting(config),
-      prompt: prompt,
-    };
-    if (colors && colors.primary) cfg.colors = { primary: colors.primary, accent: colors.accent || colors.primary };
-    const json = JSON.stringify(cfg);
-    return '<script src="https://autogrow-demo.pages.dev/widget.js"\n  data-config=\'' + json + '\'\n  data-api="https://autogrow-demo.pages.dev/api/chat"><\/script>';
-  }
+  // ═══ Deploy / close — drive to checkout + capture leads ═══
   function openDeployModal() {
-    document.getElementById('modalTitle').textContent = 'Put this chatbot on ' + (businessConfig.name || 'your site');
-    document.getElementById('embedBox').textContent = buildEmbedSnippet(businessConfig);
+    document.getElementById('modalTitle').textContent = 'Get this chatbot on ' + (businessConfig.name || 'your site');
     document.getElementById('deployModal').classList.add('show');
   }
   function closeDeployModal() { document.getElementById('deployModal').classList.remove('show'); }
-  function copyEmbed() {
-    const txt = document.getElementById('embedBox').textContent;
-    navigator.clipboard.writeText(txt).then(() => {
-      const b = document.getElementById('copyBtn'); b.textContent = '✓ Copied!';
-      setTimeout(() => { b.textContent = '📋 Copy embed code'; }, 1800);
-    });
-  }
   async function submitLead() {
     const email = document.getElementById('leadEmail').value.trim();
     const name = document.getElementById('leadName').value.trim();
@@ -1088,3 +1049,4 @@
 </script>
 </body>
 </html>
+
