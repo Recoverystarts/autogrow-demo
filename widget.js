@@ -20,7 +20,7 @@
     business: 'AutoGrow AI',
     avatar: 'A',
     color: '#34d399',
-    greeting: "Hey there! \ud83d\udc4b I'm an AutoGrow AI chatbot \u2014 and I'm proof the product works!\n\nHow can I help you today?\n\n\ud83c\udfaf **See a demo** \u2014 Paste your website URL at https://autogrow-demo.pages.dev/ and watch your chatbot come alive in 10 seconds\n\n\u2705 **Already signed up?** \u2014 Visit https://autogrow.org/welcome to get your embed code and installation guide\n\nOr just tell me about your business and I'll walk you through everything!",
+    greeting: "Hey there! \ud83d\udc4b I'm an AutoGrow AI chatbot \u2014 and I'm proof the product works!\n\nHow can I help you today?\n\n\ud83c\udfaf See a demo \u2014 Paste your website URL at https://autogrow-demo.pages.dev/ and watch your chatbot come alive in 10 seconds\n\n\u2705 Already signed up? \u2014 Visit https://autogrow.org/welcome to get your embed code and installation guide\n\nOr just tell me about your business and I'll walk you through everything!",
     prompt: `You are the sales and support assistant chatbot on autogrow.org \u2014 a company that builds custom AI chatbots for businesses of all sizes.
 
 YOUR JOB: Walk website visitors through what AutoGrow does, guide them to try the demo, help them sign up, and help existing customers install their chatbot. You ARE the product demo \u2014 you're proof that the chatbot works.
