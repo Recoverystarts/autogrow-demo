@@ -1,5 +1,6 @@
-// AutoGrow — Gemini API Proxy with CORS
+// AutoGrow — Gemini API Proxy with Client Verification
 // Cloudflare Pages Function at /api/chat
+// THE SPINE: checks client_id against KV on every request
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -15,6 +16,7 @@ export async function onRequestOptions() {
 
 export async function onRequestPost(context) {
   const GEMINI_KEY = context.env.GEMINI_API_KEY;
+  const CLIENTS = context.env.CLIENTS; // KV binding
 
   if (!GEMINI_KEY) {
     return new Response(JSON.stringify({ error: 'API key not configured' }), {
@@ -25,7 +27,7 @@ export async function onRequestPost(context) {
 
   try {
     const body = await context.request.json();
-    const { contents, config } = body;
+    const { contents, config, client_id, mode } = body;
 
     if (!contents || !Array.isArray(contents)) {
       return new Response(JSON.stringify({ error: 'Invalid request' }), {
@@ -34,6 +36,43 @@ export async function onRequestPost(context) {
       });
     }
 
+    // ═══ CLIENT VERIFICATION ═══
+    // Our own chatbots (sales, demo) pass through freely.
+    // Client chatbots must have a valid, active client_id.
+    if (mode !== 'sales' && mode !== 'demo' && client_id) {
+      if (CLIENTS) {
+        const recordStr = await CLIENTS.get(`client:${client_id}`);
+
+        if (!recordStr) {
+          return new Response(JSON.stringify({
+            error: 'invalid_client',
+            response: "This chatbot isn't configured yet. Please contact support@autogrow.org for help."
+          }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
+          });
+        }
+
+        const record = JSON.parse(recordStr);
+
+        if (record.status === 'inactive') {
+          return new Response(JSON.stringify({
+            error: 'subscription_inactive',
+            response: "This chatbot's subscription has ended. Visit autogrow.org to reactivate."
+          }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
+          });
+        }
+
+        if (record.status === 'past_due') {
+          // Still allow but log — gives business owner time to fix payment
+          console.warn(`⚠️ Client ${client_id} has past_due subscription`);
+        }
+      }
+    }
+
+    // ═══ GEMINI API CALL ═══
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
 
     const geminiResponse = await fetch(geminiUrl, {

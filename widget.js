@@ -1,6 +1,7 @@
 // AutoGrow AI Chat Widget — Embeddable on any website
-// Usage: <script src="https://autogrow-demo.pages.dev/widget.js" data-config='{"business":"Name","prompt":"..."}' data-api="https://autogrow-demo.pages.dev/api/chat"></script>
+// Usage: <script src="https://autogrow-demo.pages.dev/widget.js" data-client="ag_xxxxx" data-api="https://autogrow-demo.pages.dev/api/chat"></script>
 // Or use data-mode="sales" for the AutoGrow sales assistant
+// data-client is required for paying customers — verified against active subscriptions
 
 (function() {
   'use strict';
@@ -9,6 +10,7 @@
   const script = document.currentScript;
   const API_URL = script.getAttribute('data-api') || 'https://autogrow-demo.pages.dev/api/chat';
   const mode = script.getAttribute('data-mode') || 'custom';
+  const clientId = script.getAttribute('data-client') || '';
   const configStr = script.getAttribute('data-config') || '{}';
   let config;
   try { config = JSON.parse(configStr); } catch(e) { config = {}; }
@@ -18,7 +20,7 @@
     business: 'AutoGrow AI',
     avatar: 'A',
     color: '#34d399',
-    greeting: "Hey there! \ud83d\udc4b I'm an AutoGrow AI chatbot \u2014 and I'm proof the product works! Want to see what a chatbot for YOUR business would look like? Try our live demo: https://autogrow-demo.pages.dev/ \u2014 or just tell me about your business and I'll walk you through it!",
+    greeting: "Hey there! \ud83d\udc4b I'm an AutoGrow AI chatbot \u2014 and I'm proof the product works!\n\nHow can I help you today?\n\n\ud83c\udfaf **See a demo** \u2014 Paste your website URL at https://autogrow-demo.pages.dev/ and watch your chatbot come alive in 10 seconds\n\n\u2705 **Already signed up?** \u2014 Visit https://autogrow.org/welcome to get your embed code and installation guide\n\nOr just tell me about your business and I'll walk you through everything!",
     prompt: `You are the sales and support assistant chatbot on autogrow.org \u2014 a company that builds custom AI chatbots for businesses of all sizes.
 
 YOUR JOB: Walk website visitors through what AutoGrow does, guide them to try the demo, help them sign up, and help existing customers install their chatbot. You ARE the product demo \u2014 you're proof that the chatbot works.
@@ -384,10 +386,18 @@ RULES:
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents })
+        body: JSON.stringify({ contents, client_id: clientId || undefined, mode: mode || undefined })
       });
 
-      if (!res.ok) throw new Error('API error ' + res.status);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (errData.error === 'invalid_client' || errData.error === 'subscription_inactive') {
+          removeMessage(typingId);
+          addMessage('bot', errData.response || "This chatbot needs to be activated. Please contact the business owner.");
+          return;
+        }
+        throw new Error('API error ' + res.status);
+      }
       const data = await res.json();
       const response = data.response || "I'm having trouble right now. Please try again!";
 
