@@ -2,8 +2,6 @@
 // Creates and manages client records in Cloudflare KV
 // This is THE SPINE — everything depends on client_id existing
 
-import { Buffer } from 'node:buffer';
-
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
