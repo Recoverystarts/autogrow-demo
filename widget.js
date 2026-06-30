@@ -268,6 +268,41 @@ RULES:
     if (el) el.remove();
   }
 
+
+
+  // ═══ IN-CHAT LEAD CAPTURE ═══
+  // Detects emails in conversation and auto-captures them
+  const EMAIL_REGEX = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+  const capturedEmails = new Set();
+
+  function detectAndCaptureLead(text, source) {
+    const emails = text.match(EMAIL_REGEX);
+    if (!emails) return;
+    
+    for (const email of emails) {
+      // Skip AutoGrow's own emails and duplicates
+      if (email.endsWith('@autogrow.org') || capturedEmails.has(email)) continue;
+      capturedEmails.add(email);
+      
+      // Determine the lead API URL from the chat API URL
+      const leadUrl = API_URL.replace('/api/chat', '/api/lead');
+      
+      // Silently capture the lead — don't disrupt the conversation
+      fetch(leadUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          business: c.business || '',
+          website: window.location.href,
+          source: 'in-chat-' + source,
+          captured_at: new Date().toISOString(),
+        }),
+      }).catch(() => {}); // Fail silently — lead capture should never break the chat
+    }
+  }
+
+
   // ═══ SEND ═══
   async function sendMessage() {
     const input = document.getElementById('ag-widget-input');
@@ -277,6 +312,7 @@ RULES:
     input.value = '';
     addMessage('user', msg);
     chatHistory.push({ role: 'user', content: msg });
+    detectAndCaptureLead(msg, 'user');
 
     const typingId = addMessage('typing', 'Typing...');
 
@@ -307,6 +343,7 @@ RULES:
       removeMessage(typingId);
       addMessage('bot', response);
       chatHistory.push({ role: 'assistant', content: response });
+      detectAndCaptureLead(response, 'bot');
 
     } catch (err) {
       removeMessage(typingId);
