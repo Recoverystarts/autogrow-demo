@@ -1,6 +1,6 @@
-// AutoGrow — Website Scraper + AI Business Analyzer v2
-// Now extracts site links, phone tel: links, map URLs
-// The chatbot becomes a concierge that can deep-link to real pages
+// AutoGrow — Website Scraper + AI Business Analyzer v3
+// UPGRADE: Aggressive content extraction, meta/OG tags, structured data,
+// nav link discovery, and enriched Gemini prompt for better analysis
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -33,18 +33,18 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Normalize URL
     const baseUrl = url.startsWith('http') ? url : 'https://' + url;
     const urlObj = new URL(baseUrl);
     const domain = urlObj.origin;
 
-    // ═══ STEP 1: Fetch the website ═══
-    let html, pageContent, siteLinks, phoneLinks, mapLinks, brandColors, logoUrl, ogImage;
+    // ═══ STEP 1: Fetch + Deep Content Extraction ═══
+    let html, metadata, siteLinks, phoneLinks, mapLinks, brandColors, logoUrl, ogImage;
     try {
       const siteResponse = await fetch(baseUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; AutoGrow Bot; +https://autogrow.org)',
-          'Accept': 'text/html,application/xhtml+xml',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
         },
         redirect: 'follow',
       });
@@ -58,9 +58,52 @@ export async function onRequestPost(context) {
 
       html = await siteResponse.text();
 
-      // ═══ EXTRACT LINKS BEFORE STRIPPING HTML ═══
+      // ═══ METADATA EXTRACTION — reliable even on JS sites ═══
+      metadata = {};
 
-      // Internal site links (pages on the same domain)
+      // Title
+      const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      metadata.title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+
+      // Meta description
+      const metaDesc = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)
+        || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+      metadata.description = metaDesc ? metaDesc[1].trim() : '';
+
+      // OG tags — often have the best summary content
+      const ogTags = {};
+      const ogRegex = /<meta[^>]+property=["']og:(\w+)["'][^>]+content=["']([^"']+)["']/gi;
+      let ogMatch;
+      while ((ogMatch = ogRegex.exec(html)) !== null) {
+        ogTags[ogMatch[1].toLowerCase()] = ogMatch[2].trim();
+      }
+      // Also check reversed attribute order
+      const ogRegex2 = /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:(\w+)["']/gi;
+      while ((ogMatch = ogRegex2.exec(html)) !== null) {
+        if (!ogTags[ogMatch[2].toLowerCase()]) {
+          ogTags[ogMatch[2].toLowerCase()] = ogMatch[1].trim();
+        }
+      }
+      metadata.og = ogTags;
+      ogImage = ogTags.image || null;
+
+      // Twitter card
+      const twDesc = html.match(/<meta[^>]+name=["']twitter:description["'][^>]+content=["']([^"']+)["']/i);
+      if (twDesc && !metadata.description) metadata.description = twDesc[1].trim();
+
+      // JSON-LD structured data — goldmine for business info
+      const jsonLdBlocks = [];
+      const ldRegex = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+      let ldMatch;
+      while ((ldMatch = ldRegex.exec(html)) !== null) {
+        try {
+          const parsed = JSON.parse(ldMatch[1].trim());
+          jsonLdBlocks.push(parsed);
+        } catch(e) {}
+      }
+      metadata.structuredData = jsonLdBlocks;
+
+      // ═══ LINK EXTRACTION — more aggressive ═══
       const linkRegex = /<a[^>]+href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
       const rawLinks = [];
       let match;
@@ -68,30 +111,49 @@ export async function onRequestPost(context) {
         let href = match[1].trim();
         let text = match[2].replace(/<[^>]+>/g, '').trim();
         if (!text || text.length < 2 || text.length > 80) continue;
+        // Skip anchors, javascript, mailto
+        if (href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:')) continue;
 
         // Resolve relative URLs
         if (href.startsWith('/')) href = domain + href;
+        else if (!href.startsWith('http')) href = domain + '/' + href;
 
-        // Keep internal links and important external ones
-        if (href.startsWith(domain) || href.startsWith('/')) {
-          rawLinks.push({ url: href, label: text });
-        }
+        // Keep internal links
+        try {
+          const linkHost = new URL(href).hostname.replace(/^www\./, '');
+          const siteHost = urlObj.hostname.replace(/^www\./, '');
+          if (linkHost === siteHost) {
+            rawLinks.push({ url: href, label: text });
+          }
+        } catch(e) {}
       }
 
-      // Deduplicate by URL, keep unique pages
-      const seenUrls = new Set();
+      // Deduplicate by URL path, keep unique pages
+      const seenPaths = new Set();
       siteLinks = rawLinks.filter(l => {
-        const clean = l.url.replace(/\/$/, '').toLowerCase();
-        if (seenUrls.has(clean)) return false;
-        seenUrls.add(clean);
-        return true;
-      }).slice(0, 20); // Cap at 20 links
+        try {
+          const path = new URL(l.url).pathname.replace(/\/$/, '').toLowerCase();
+          if (path === '' || path === '/' || seenPaths.has(path)) return false;
+          seenPaths.add(path);
+          return true;
+        } catch(e) { return false; }
+      }).slice(0, 25);
 
-      // Phone links (tel: hrefs)
-      const phoneRegex = /(?:<a[^>]+href=["']tel:([^"']+)["']|(?:\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}))/gi;
+      // Phone links
+      const phoneRegex = /(?:<a[^>]+href=["']tel:([^"']+)["']|(?:(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}))/gi;
       phoneLinks = [];
       while ((match = phoneRegex.exec(html)) !== null) {
         if (match[1]) phoneLinks.push(match[1].trim());
+      }
+      // Also look for phone in text content
+      const phoneInText = html.replace(/<[^>]+>/g, ' ').match(/(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g);
+      if (phoneInText) {
+        for (const p of phoneInText) {
+          const cleaned = p.replace(/[\s.-]/g, '');
+          if (cleaned.length >= 10 && cleaned.length <= 12) {
+            phoneLinks.push(p.trim());
+          }
+        }
       }
 
       // Google Maps links
@@ -101,7 +163,7 @@ export async function onRequestPost(context) {
         mapLinks.push(match[0]);
       }
 
-      // ═══ BRAND COLORS — pull the palette so the widget can match the site ═══
+      // ═══ BRAND COLORS ═══
       const absUrl = (u) => {
         if (!u) return null;
         u = u.trim();
@@ -119,8 +181,8 @@ export async function onRequestPost(context) {
         const max = Math.max(r,g,b), min = Math.min(r,g,b);
         const light = (max+min)/2/255;
         const sat = max === 0 ? 0 : (max-min)/max;
-        if (light > 0.93 || light < 0.06) return;     // skip near-white / near-black
-        if (sat < 0.18) return;                        // skip grays — we want brand color
+        if (light > 0.93 || light < 0.06) return;
+        if (sat < 0.18) return;
         colorCounts[hex] = (colorCounts[hex]||0) + 1;
       };
       let cmatch;
@@ -135,24 +197,46 @@ export async function onRequestPost(context) {
       if (themeMeta && /^#[0-9a-fA-F]{3,6}$/.test(themeMeta[1].trim())) {
         let t = themeMeta[1].trim().toLowerCase();
         if (/^#[0-9a-f]{3}$/.test(t)) t = '#' + t[1]+t[1]+t[2]+t[2]+t[3]+t[3];
-        sorted = [t, ...sorted.filter(c => c !== t)];   // theme-color wins as primary
+        sorted = [t, ...sorted.filter(c => c !== t)];
       }
       sorted = [...new Set(sorted)];
       brandColors = sorted.length ? { primary: sorted[0], accent: sorted[1] || sorted[0], all: sorted.slice(0,6) } : null;
 
-      // Logo (for branded backdrop + avatar) and og:image (hero)
-      const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
-      ogImage = ogMatch ? absUrl(ogMatch[1]) : null;
+      // Logo
       const logoTag = html.match(/<img[^>]*(?:class|id|alt|src)=["'][^"']*logo[^"']*["'][^>]*>/i);
       if (logoTag) {
         const src = logoTag[0].match(/\bsrc=["']([^"']+)["']/i);
         logoUrl = src ? absUrl(src[1]) : null;
       }
+      if (!logoUrl) {
+        // Try finding logo by common patterns
+        const logoLink = html.match(/<link[^>]+rel=["'](?:icon|apple-touch-icon|shortcut icon)["'][^>]+href=["']([^"']+)["']/i);
+        if (logoLink) logoUrl = absUrl(logoLink[1]);
+      }
 
-      // Strip HTML for text analysis
-      pageContent = html
+      // ═══ ENRICHED CONTENT — headings, services, key text ═══
+      // Extract headings separately — they're the strongest signal
+      const headings = [];
+      const hRegex = /<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi;
+      while ((match = hRegex.exec(html)) !== null) {
+        const text = match[1].replace(/<[^>]+>/g, '').trim();
+        if (text && text.length > 2 && text.length < 120) headings.push(text);
+      }
+
+      // Extract list items — often contain services, features, hours
+      const listItems = [];
+      const liRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+      while ((match = liRegex.exec(html)) !== null) {
+        const text = match[1].replace(/<[^>]+>/g, '').trim();
+        if (text && text.length > 3 && text.length < 200) listItems.push(text);
+      }
+
+      // Strip HTML for general text content
+      const pageContent = html
         .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
         .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '') // Skip nav — we extracted links separately
+        .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '') // Skip footer boilerplate
         .replace(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi, '\n## $1\n')
         .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '- $1\n')
         .replace(/<br\s*\/?>/gi, '\n')
@@ -168,143 +252,189 @@ export async function onRequestPost(context) {
         .trim()
         .slice(0, 8000);
 
+      // ═══ STEP 2: Send ENRICHED data to Gemini ═══
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+
+      // Build a rich context for Gemini
+      let geminiContext = '';
+      
+      // Always include meta/OG data — it's the most reliable on modern sites
+      if (metadata.title) geminiContext += `PAGE TITLE: ${metadata.title}\n`;
+      if (metadata.description) geminiContext += `META DESCRIPTION: ${metadata.description}\n`;
+      if (metadata.og.title) geminiContext += `OG TITLE: ${metadata.og.title}\n`;
+      if (metadata.og.description) geminiContext += `OG DESCRIPTION: ${metadata.og.description}\n`;
+      if (metadata.og.site_name) geminiContext += `SITE NAME: ${metadata.og.site_name}\n`;
+      
+      // Structured data is gold
+      if (metadata.structuredData.length > 0) {
+        geminiContext += `\nSTRUCTURED DATA (JSON-LD):\n${JSON.stringify(metadata.structuredData, null, 1).slice(0, 3000)}\n`;
+      }
+      
+      // Headings tell you the page structure
+      if (headings.length > 0) {
+        geminiContext += `\nPAGE HEADINGS:\n${headings.slice(0, 30).map(h => '- ' + h).join('\n')}\n`;
+      }
+      
+      // List items often contain services, features, hours
+      if (listItems.length > 0) {
+        geminiContext += `\nLIST ITEMS FOUND:\n${listItems.slice(0, 30).map(li => '- ' + li).join('\n')}\n`;
+      }
+
+      // Site links
+      if (siteLinks.length > 0) {
+        geminiContext += `\nSITE PAGES FOUND:\n${siteLinks.map(l => `- ${l.label}: ${l.url}`).join('\n')}\n`;
+      }
+
+      // Phone numbers found
+      if (phoneLinks.length > 0) {
+        geminiContext += `\nPHONE NUMBERS FOUND: ${[...new Set(phoneLinks)].slice(0, 3).join(', ')}\n`;
+      }
+
+      const extractionPrompt = `You are analyzing a business website to extract information for a customer-facing chatbot. Use ALL the data sources below — metadata, structured data, headings, list items, AND the page content — to build the most complete picture possible.
+
+Return ONLY a JSON object with these fields (use null for anything you genuinely can't find, but TRY HARD):
+
+{
+  "businessName": "the business name (check og:site_name, title, structured data)",
+  "industry": "one of: Healthcare, Restaurant, Retail, Professional Services, Home Services, Beauty & Wellness, Automotive, Real Estate, Fitness, Education, Legal, Dental, Veterinary, Construction, Technology, Other",
+  "description": "2-3 sentence description of what the business does. Pull from meta description, OG description, or synthesize from headings and content. Make it useful for a chatbot.",
+  "hours": "business hours if found anywhere (structured data, content, list items). Format: 'Mon-Fri 9am-5pm' style",
+  "phone": "primary business phone number (check structured data, tel: links, content)",
+  "email": "business email if found",
+  "tone": "one of: Professional, Friendly & Warm, Casual, Clinical, Luxury — judge from the site's language and style",
+  "commonQuestions": ["5 questions a real customer would ask this business, based on what they offer"],
+  "services": ["list every service/product you can find — check headings, list items, content"],
+  "pricing": "any pricing information found (even ranges or 'starting at' prices)",
+  "location": "full address if found",
+  "sitePages": [
+    {"label": "human-readable name", "url": "full URL", "purpose": "what a customer finds there"}
+  ]
+}
+
+For sitePages: include EVERY page that would help a customer — services, pricing, booking, contact, about, gallery, menu, FAQ, team, testimonials. Skip generic nav items like "Home", login, privacy policy, terms.
+
+CRITICAL: Extract services even if you have to infer them from headings, list items, or page content. A plumber's site with headings "Drain Cleaning", "Water Heater Repair", "Pipe Installation" = services: ["Drain Cleaning", "Water Heater Repair", "Pipe Installation"].
+
+Return ONLY the JSON object. No markdown, no explanation.
+
+═══ EXTRACTED DATA ═══
+
+${geminiContext}
+
+═══ PAGE CONTENT ═══
+
+${pageContent}`;
+
+      const geminiResponse = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: extractionPrompt }] }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 2000,
+            responseMimeType: 'application/json',
+          },
+        })
+      });
+
+      if (!geminiResponse.ok) {
+        return new Response(JSON.stringify({ error: 'AI analysis failed' }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
+        });
+      }
+
+      const geminiData = await geminiResponse.json();
+      const responseText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      let businessInfo;
+      try {
+        let cleaned = responseText
+          .replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const firstBrace = cleaned.indexOf('{');
+        const lastBrace = cleaned.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+          cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+        }
+        cleaned = cleaned.replace(/[\x00-\x1f\x7f]/g, (ch) => {
+          if (ch === '\n' || ch === '\r' || ch === '\t') return ch;
+          return '';
+        });
+        businessInfo = JSON.parse(cleaned);
+      } catch (parseErr) {
+        try {
+          const getName = responseText.match(/"businessName"\s*:\s*"([^"]+)"/);
+          const getDesc = responseText.match(/"description"\s*:\s*"([^"]+)"/);
+          const getPhone = responseText.match(/"phone"\s*:\s*"([^"]+)"/);
+          businessInfo = {
+            businessName: getName ? getName[1] : metadata.og.site_name || metadata.title || 'Unknown Business',
+            description: getDesc ? getDesc[1] : metadata.description || metadata.og.description || '',
+            phone: getPhone ? getPhone[1] : (phoneLinks.length > 0 ? phoneLinks[0] : null),
+            industry: 'Other',
+            tone: 'Friendly & Warm',
+            commonQuestions: [],
+            sitePages: [],
+            _parseFallback: true
+          };
+        } catch (regexErr) {
+          return new Response(JSON.stringify({
+            error: 'Could not parse business info',
+            raw: responseText.slice(0, 500)
+          }), {
+            status: 422,
+            headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
+          });
+        }
+      }
+
+      // Enrich with extracted data that Gemini might have missed
+      if (phoneLinks.length > 0 && !businessInfo.phone) {
+        businessInfo.phone = phoneLinks[0];
+      }
+      if (mapLinks.length > 0) {
+        businessInfo.mapUrl = mapLinks[0];
+      }
+      // Use meta/OG as fallbacks
+      if (!businessInfo.description && metadata.description) {
+        businessInfo.description = metadata.description;
+      }
+      if (!businessInfo.description && metadata.og.description) {
+        businessInfo.description = metadata.og.description;
+      }
+      if (!businessInfo.businessName || businessInfo.businessName === 'Unknown Business') {
+        businessInfo.businessName = metadata.og.site_name || metadata.title?.split(/[|–—-]/)[0]?.trim() || 'Unknown Business';
+      }
+
+      // Brand styling
+      businessInfo.brandColors = brandColors;
+      businessInfo.logoUrl = logoUrl;
+      businessInfo.ogImage = ogImage;
+
+      return new Response(JSON.stringify({
+        success: true,
+        business: businessInfo,
+        sourceUrl: url,
+        rawLinks: siteLinks.length,
+        metaExtracted: {
+          title: !!metadata.title,
+          description: !!metadata.description,
+          ogTags: Object.keys(metadata.og).length,
+          structuredData: metadata.structuredData.length,
+          headings: headings.length,
+          listItems: listItems.length,
+        },
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
+      });
+
     } catch (fetchErr) {
       return new Response(JSON.stringify({ error: `Couldn't fetch that site: ${fetchErr.message}` }), {
         status: 422,
         headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
       });
     }
-
-    // ═══ STEP 2: Send to Gemini for extraction ═══
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
-
-    // Include discovered links in the prompt for context
-    const linksContext = siteLinks.length > 0
-      ? `\n\nSITE PAGES FOUND:\n${siteLinks.map(l => `- ${l.label}: ${l.url}`).join('\n')}`
-      : '';
-
-    const extractionPrompt = `Analyze this business website content and extract structured information. Return ONLY a JSON object with these fields (use null for anything you can't find):
-
-{
-  "businessName": "the business name",
-  "industry": "one of: Healthcare, Restaurant, Retail, Professional Services, Home Services, Beauty & Wellness, Automotive, Real Estate, Fitness, Education, Legal, Dental, Other",
-  "description": "2-3 sentence description of what the business does, its services, and value proposition",
-  "hours": "business hours if found, e.g. 'Mon-Fri 9am-5pm, Sat 10am-2pm'",
-  "phone": "phone number if found",
-  "tone": "one of: Professional, Friendly & Warm, Casual, Clinical, Luxury",
-  "commonQuestions": [
-    "likely customer question based on their services",
-    "another likely question",
-    "another likely question",
-    "another likely question",
-    "another likely question"
-  ],
-  "services": ["service 1", "service 2", "service 3"],
-  "location": "address or city if found",
-  "sitePages": [
-    {"label": "human-readable page name", "url": "full URL", "purpose": "what a customer would find there"}
-  ]
-}
-
-For sitePages: map the site links below to customer-useful pages. Include product/service pages, contact, about, gallery, booking/ordering pages. Skip generic nav items like "Home" or login pages. Each entry should help a chatbot direct customers to the right place.
-
-Return ONLY the JSON object. No markdown, no explanation, no backticks.
-
-Website content:
-${pageContent}${linksContext}`;
-
-    const geminiResponse = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: extractionPrompt }] }],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 1500,
-          responseMimeType: 'application/json',
-        },
-      })
-    });
-
-    if (!geminiResponse.ok) {
-      return new Response(JSON.stringify({ error: 'AI analysis failed' }), {
-        status: 502,
-        headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
-      });
-    }
-
-    const geminiData = await geminiResponse.json();
-    const responseText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-    let businessInfo;
-    try {
-      // Clean Gemini response: strip markdown fences, find JSON object
-      let cleaned = responseText
-        .replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      
-      // Extract JSON object if there's surrounding text
-      const firstBrace = cleaned.indexOf('{');
-      const lastBrace = cleaned.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace > firstBrace) {
-        cleaned = cleaned.slice(firstBrace, lastBrace + 1);
-      }
-
-      // Clean control characters that break JSON.parse
-      cleaned = cleaned.replace(/[\x00-\x1f\x7f]/g, (ch) => {
-        if (ch === '\n' || ch === '\r' || ch === '\t') return ch;
-        return '';
-      });
-
-      businessInfo = JSON.parse(cleaned);
-    } catch (parseErr) {
-      // Last resort: try to extract key fields with regex
-      try {
-        const getName = responseText.match(/"businessName"\s*:\s*"([^"]+)"/);
-        const getDesc = responseText.match(/"description"\s*:\s*"([^"]+)"/);
-        const getPhone = responseText.match(/"phone"\s*:\s*"([^"]+)"/);
-        businessInfo = {
-          businessName: getName ? getName[1] : 'Unknown Business',
-          description: getDesc ? getDesc[1] : '',
-          phone: getPhone ? getPhone[1] : null,
-          industry: 'Other',
-          tone: 'Friendly & Warm',
-          commonQuestions: [],
-          sitePages: [],
-          _parseFallback: true
-        };
-      } catch (regexErr) {
-        return new Response(JSON.stringify({
-          error: 'Could not parse business info',
-          raw: responseText.slice(0, 500)
-        }), {
-          status: 422,
-          headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
-        });
-      }
-    }
-
-    // Add raw extracted data that Gemini might have missed
-    if (phoneLinks.length > 0 && !businessInfo.phone) {
-      businessInfo.phone = phoneLinks[0];
-    }
-    if (mapLinks.length > 0) {
-      businessInfo.mapUrl = mapLinks[0];
-    }
-
-    // Brand styling so the demo can match the site's look
-    businessInfo.brandColors = brandColors;
-    businessInfo.logoUrl = logoUrl;
-    businessInfo.ogImage = ogImage;
-
-    return new Response(JSON.stringify({
-      success: true,
-      business: businessInfo,
-      sourceUrl: url,
-      rawLinks: siteLinks.length,
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
-    });
 
   } catch (err) {
     console.error('Scrape error:', err);
