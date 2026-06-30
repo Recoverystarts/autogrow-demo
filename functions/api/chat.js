@@ -107,6 +107,43 @@ export async function onRequestPost(context) {
     const responseText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text
       || "I'm having trouble right now. Please try again.";
 
+    // ═══ CONVERSATION LOGGING ═══
+    // Log every client chatbot conversation for analytics and daily digests.
+    // Each turn gets its own KV key — no race conditions, easy to list by prefix.
+    // Demo/sales mode conversations are NOT logged (internal use only).
+    if (client_id && CLIENTS && mode !== 'sales' && mode !== 'demo') {
+      try {
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+        const timeStr = now.toISOString();
+        const rand = Math.random().toString(36).substring(2, 6);
+        const userMessage = contents[contents.length - 1]?.parts?.[0]?.text || '';
+        
+        const turnData = {
+          time: timeStr,
+          user: userMessage.substring(0, 500), // cap at 500 chars
+          bot: responseText.substring(0, 500),
+        };
+        
+        // Key: conv:{client_id}:{date}:{timestamp}:{random}
+        await CLIENTS.put(
+          `conv:${client_id}:${dateStr}:${timeStr}:${rand}`,
+          JSON.stringify(turnData),
+          { expirationTtl: 60 * 60 * 24 * 90 } // keep 90 days
+        );
+        
+        // Increment daily counter (lightweight stats)
+        const counterKey = `stats:${client_id}:${dateStr}`;
+        const currentCount = parseInt(await CLIENTS.get(counterKey) || '0');
+        await CLIENTS.put(counterKey, String(currentCount + 1), {
+          expirationTtl: 60 * 60 * 24 * 90
+        });
+      } catch (logErr) {
+        // Never let logging break the chat response
+        console.error('Conversation log error (non-fatal):', logErr);
+      }
+    }
+
     return new Response(JSON.stringify({ response: responseText }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...CORS_HEADERS }
@@ -120,3 +157,4 @@ export async function onRequestPost(context) {
     });
   }
 }
+
