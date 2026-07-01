@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Install your AutoGrow chatbot on Wix — AutoGrow AI</title>
+<meta name="description" content="Step-by-step: add your AutoGrow AI chatbot to your Wix site in under a minute.">
+<style>
+:root{--g:#34d399;--ink:#0f172a;--mut:#64748b;--bg:#f8fafc;--line:#e2e8f0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+.wrap{max-width:720px;margin:0 auto;padding:28px 20px 80px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:19px;margin-bottom:22px}
+.brand .dot{width:26px;height:26px;border-radius:8px;background:var(--g);display:flex;align-items:center;justify-content:center;color:#04371f;font-size:15px}
+nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:26px}
+nav a{font-size:13.5px;text-decoration:none;color:var(--mut);border:1px solid var(--line);background:#fff;padding:7px 12px;border-radius:20px}
+nav a.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+h1{font-size:26px;line-height:1.2;margin-bottom:8px}
+.intro{color:var(--mut);font-size:15.5px;margin-bottom:24px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:18px}
+.card h2{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);margin-bottom:14px}
+label{font-size:13.5px;font-weight:600;display:block;margin-bottom:6px}
+input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-size:15px;outline:none}
+input:focus{border-color:var(--g);box-shadow:0 0 0 3px rgba(52,211,153,.18)}
+.codebox{position:relative;margin-top:14px}
+pre{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:16px;overflow-x:auto;font-size:13px;font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-all}
+.copy{position:absolute;top:10px;right:10px;background:var(--g);color:#04371f;border:none;border-radius:8px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer}
+.copy:active{transform:scale(.96)}
+.note{font-size:13.5px;color:var(--mut);margin-top:4px}
+ol.steps{list-style:none}
+ol.steps li{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);font-size:15px}
+ol.steps li:last-child{border-bottom:none}
+.n{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--g);color:#04371f;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px}
+.help{text-align:center;color:var(--mut);font-size:14px;margin-top:30px}
+.help a{color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><span class="dot">A</span> AutoGrow AI</div>
+  <nav><a href="./wordpress.html" class="">🅦 WordPress</a><a href="./wix.html" class="on">🇼 Wix</a><a href="./squarespace.html" class="">⬛ Squarespace</a><a href="./shopify.html" class="">🛍️ Shopify</a><a href="./html.html" class="">🌐 Any Website</a></nav>
+
+  <h1>Add your chatbot to Wix</h1>
+  <p class="intro">Add the chatbot with Wix’s Custom Code tool — it appears on every page.</p>
+
+  <div class="card">
+    <h2>1 · Your embed code</h2>
+    <label for="cid">Your Client ID</label>
+    <input id="cid" type="text" placeholder="e.g. ironside-barber" autocomplete="off" spellcheck="false">
+    <p class="note">Paste this exact snippet:</p>
+    <div class="codebox">
+      <button class="copy" id="copyBtn">Copy</button>
+      <pre id="code"></pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2 · Where to paste it</h2>
+    <ol class="steps"><li><span class="n">1</span><div>In your Wix dashboard, go to <b>Settings → Custom Code</b> (under “Advanced”).</div></li><li><span class="n">2</span><div>Click <b>+ Add Custom Code</b> and paste the code below.</div></li><li><span class="n">3</span><div>Under <b>Add Code to Pages</b>, choose <b>All pages</b>, and set <b>Place Code in</b> to <b>Body – end.</b></div></li><li><span class="n">4</span><div>Set the category to <b>Essential</b> so it loads for every visitor, then <b>Apply.</b></div></li></ol>
+  </div>
+
+  <p class="help">Need help? We’ll do it for you.<br>
+    📞 <a href="tel:+15875805494">587-580-5494</a> &nbsp;·&nbsp; ✉️ <a href="mailto:hello@autogrow.org">hello@autogrow.org</a>
+  </p>
+</div>
+
+<script>
+(function(){
+  var BASE="https://autogrow-demo.pages.dev";
+  var input=document.getElementById('cid');
+  var code=document.getElementById('code');
+  var btn=document.getElementById('copyBtn');
+  // Prefill from ?id=
+  var q=new URLSearchParams(location.search).get('id');
+  if(q) input.value=q.replace(/[^a-z0-9-]/gi,'').toLowerCase();
+  function snippet(){
+    var id=(input.value||'YOUR-CLIENT-ID').replace(/[^a-z0-9-]/gi,'').toLowerCase()||'YOUR-CLIENT-ID';
+    return '<script src="'+BASE+'/widget.js" data-client="'+id+'" async><\/script>';
+  }
+  function render(){ code.textContent=snippet(); }
+  input.addEventListener('input',render); render();
+  btn.addEventListener('click',function(){
+    navigator.clipboard.writeText(snippet()).then(function(){
+      btn.textContent='Copied ✓'; setTimeout(function(){btn.textContent='Copy';},1600);
+    });
+  });
+})();
+</script>
+</body>
+</html>

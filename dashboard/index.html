@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your AutoGrow Chatbot — Dashboard</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--g:#34d399;--ink:#0f172a;--mut:#64748b;--bg:#f1f5f9;--card:#fff;--line:#e2e8f0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+.wrap{max-width:960px;margin:0 auto;padding:26px 20px 80px}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.dot{width:28px;height:28px;border-radius:9px;background:var(--g);display:flex;align-items:center;justify-content:center;color:#04371f;font-weight:800}
+.top b{font-size:15px}
+h1{font-size:26px;margin:14px 0 2px}
+.sub{color:var(--mut);font-size:14px;margin-bottom:22px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+.card .k{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
+.card .v{font-size:30px;font-weight:800;margin-top:6px;line-height:1}
+.card .v small{font-size:14px;font-weight:600;color:var(--mut)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:18px}
+.panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);margin-bottom:16px}
+svg{width:100%;height:180px;display:block}
+.bar{fill:var(--g)}
+.bar:hover{fill:#10b981}
+.axis{fill:var(--mut);font-size:10px}
+.tq{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.tq:last-child{border:none}
+.tq .c{color:var(--mut);font-variant-numeric:tabular-nums;flex-shrink:0}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--mut)}
+td.q{font-weight:600;width:34%}
+td.a{color:#334155}
+td.t{color:var(--mut);white-space:nowrap;width:120px}
+.billing{display:inline-block;margin-top:4px;background:var(--ink);color:#fff;text-decoration:none;padding:11px 18px;border-radius:10px;font-weight:600;font-size:14px}
+.state{text-align:center;padding:60px 20px;color:var(--mut)}
+.err{color:#b91c1c}
+.foot{text-align:center;color:var(--mut);font-size:12.5px;margin-top:30px}
+@media(max-width:560px){td.a{display:none}td.q{width:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span class="dot">A</span><b>AutoGrow AI</b></div>
+  <div id="app"><div class="state">Loading your dashboard…</div></div>
+  <p class="foot">This is a read-only transparency view. We manage and improve your chatbot for you — questions? 587-580-5494</p>
+</div>
+
+<script>
+(function(){
+  var app=document.getElementById('app');
+  var qs=new URLSearchParams(location.search);
+  var id=qs.get('id'), key=qs.get('key');
+  var BASE=location.origin;
+
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function fmtDate(ts){try{return new Date(ts).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});}catch(e){return '';}}
+
+  if(!id||!key){
+    app.innerHTML='<div class="state err">This dashboard link is missing its access key.<br>Please use the private link from your welcome email, or call us at 587-580-5494.</div>';
+    return;
+  }
+
+  fetch(BASE+'/api/dashboard/'+encodeURIComponent(id)+'?key='+encodeURIComponent(key))
+    .then(function(r){ if(r.status===401) throw new Error('unauth'); if(!r.ok) throw new Error('http'); return r.json(); })
+    .then(render)
+    .catch(function(e){
+      app.innerHTML='<div class="state err">'+(e.message==='unauth'
+        ? 'That access key isn’t valid. Please use your private dashboard link, or contact us.'
+        : 'We couldn’t load your dashboard right now. Please try again shortly.')+'</div>';
+    });
+
+  function chart(days){
+    var max=Math.max(1,Math.apply?Math.max.apply(null,days.map(function(d){return d.count;})):1);
+    var W=920,H=180,pad=24,n=days.length;
+    var bw=(W-pad*2)/n;
+    var bars=days.map(function(d,i){
+      var h=Math.round((d.count/max)*(H-pad*2));
+      var x=pad+i*bw, y=H-pad-h;
+      return '<rect class="bar" x="'+(x+1)+'" y="'+y+'" width="'+(bw-2)+'" height="'+Math.max(h,d.count>0?2:0)+'" rx="2"><title>'+d.date+': '+d.count+'</title></rect>';
+    }).join('');
+    // a few date labels
+    var labels='';
+    [0,Math.floor(n/2),n-1].forEach(function(i){
+      var x=pad+i*bw+bw/2;
+      labels+='<text class="axis" x="'+x+'" y="'+(H-6)+'" text-anchor="middle">'+days[i].date.slice(5)+'</text>';
+    });
+    return '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+bars+labels+'</svg>';
+  }
+
+  function render(d){
+    var avg=d.days&&d.days.length?Math.round(d.monthTotal/Math.max(1,d.days.filter(function(x){return true;}).length)*10)/10:0;
+    var modelLabel={gemini:'Gemini',claude:'Claude',"claude-fast":'Claude',gpt:'GPT-4o'}[d.model]||d.model;
+    var html='';
+    html+='<h1>'+esc(d.business)+'</h1>';
+    html+='<div class="sub">Here’s what your chatbot has been doing.</div>';
+
+    html+='<div class="cards">';
+    html+='<div class="card"><div class="k">Conversations (30 days)</div><div class="v">'+d.monthTotal+'</div></div>';
+    html+='<div class="card"><div class="k">Avg / day</div><div class="v">'+avg+'</div></div>';
+    html+='<div class="card"><div class="k">AI model</div><div class="v" style="font-size:22px">'+esc(modelLabel)+'</div></div>';
+    html+='<div class="card"><div class="k">Status</div><div class="v" style="font-size:22px;color:#059669">● Live</div></div>';
+    html+='</div>';
+
+    html+='<div class="panel"><h2>Conversations per day</h2>'+chart(d.days||[])+'</div>';
+
+    if(d.topQuestions&&d.topQuestions.length){
+      html+='<div class="panel"><h2>What people ask most</h2>';
+      d.topQuestions.forEach(function(t){
+        html+='<div class="tq"><span>'+esc(t.q)+'</span><span class="c">'+t.count+'×</span></div>';
+      });
+      html+='</div>';
+    }
+
+    html+='<div class="panel"><h2>Recent conversations</h2>';
+    if(d.recent&&d.recent.length){
+      html+='<table><thead><tr><th>Visitor asked</th><th>Chatbot replied</th><th>When</th></tr></thead><tbody>';
+      d.recent.forEach(function(c){
+        html+='<tr><td class="q">'+esc(c.q)+'</td><td class="a">'+esc((c.a||'').slice(0,160))+((c.a||'').length>160?'…':'')+'</td><td class="t">'+fmtDate(c.ts)+'</td></tr>';
+      });
+      html+='</tbody></table>';
+    } else {
+      html+='<div style="color:var(--mut);font-size:14px">No conversations logged yet. Once visitors start chatting, they’ll appear here.</div>';
+    }
+    html+='</div>';
+
+    if(d.billingUrl){
+      html+='<div class="panel"><h2>Billing</h2><a class="billing" href="'+esc(d.billingUrl)+'" target="_blank" rel="noopener">Manage billing →</a></div>';
+    }
+
+    app.innerHTML=html;
+  }
+})();
+</script>
+</body>
+</html>

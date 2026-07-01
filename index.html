@@ -433,12 +433,17 @@
           ✓ Cancel anytime during the trial
         </div>
       </div>
-      <a href="https://buy.stripe.com/fZu6oH19C3o50cg6Q7bZe09" target="_blank" rel="noopener"
+      <!-- PRICING: Starter $29 / Pro $79 CAD (new tiers). The Stripe products for
+           these prices are NOT created yet — until they are, this CTA routes to the
+           lead form below (no dead checkout, leads still captured). When the new
+           Stripe payment links exist, set the href to the Starter checkout link.
+           Retired $150 link: https://buy.stripe.com/fZu6oH19C3o50cg6Q7bZe09 -->
+      <a href="#lead" onclick="document.getElementById('leadEmail').focus(); document.getElementById('leadEmail').scrollIntoView({behavior:'smooth',block:'center'}); return false;"
          style="display: block; text-align: center; background: linear-gradient(135deg, #16a34a, #15803d); color: #fff; border-radius: 12px; padding: 15px 24px; font-size: 1.05rem; font-weight: 700; text-decoration: none; box-shadow: 0 4px 16px rgba(22,163,74,0.3); transition: transform 0.15s, box-shadow 0.15s;"
          onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 24px rgba(22,163,74,0.4)'"
          onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 16px rgba(22,163,74,0.3)'"
       >Start My Free Trial →</a>
-      <div style="text-align: center; font-size: 0.82rem; color: #94a3b8; margin-top: 8px;">$150 CAD/month after trial · No setup fee · Cancel anytime</div>
+      <div style="text-align: center; font-size: 0.82rem; color: #94a3b8; margin-top: 8px;"><b style="color:#166534;">Starter $29 CAD/mo</b> · Pro $79/mo (adds monthly optimization) · 14-day free trial · No setup fee · Cancel anytime</div>
       <div class="lead-form">
         <h3>Not ready yet? We'll set it up for you — free.</h3>
         <p>Drop your email and we'll reach out to get your chatbot live this week.</p>

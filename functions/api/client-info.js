@@ -74,7 +74,7 @@ export async function onRequestGet(context) {
     const record = JSON.parse(recordStr);
 
     // Build the embed snippet for this client
-    const embedSnippet = `<script src="https://autogrow-demo.pages.dev/widget.js" data-client="${record.client_id}" data-api="https://autogrow-demo.pages.dev/api/chat"></script>`;
+    const embedSnippet = `<script src="https://autogrow-demo.pages.dev/widget.js" data-client="${record.client_id}" async></script>`;
 
     return new Response(JSON.stringify({
       client_id: record.client_id,
